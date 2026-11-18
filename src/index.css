@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #0b0d10;
+    color: #f4f4f5;
+    font-family: var(--font-sans);
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+}
+
+.font-mono-code {
+  font-family: var(--font-mono);
+}
+
+/* Contrast-aware text for Color Swatch nodes with modern CSS + Relative Color fallback */
+.swatch-contrast-text {
+  color: var(--swatch-fallback-fg, #ffffff);
+}
+
+@supports (color: color(from #000 xyz-d65 0 0 0)) {
+  .swatch-contrast-text {
+    --wcag-y-threshold: 0.17913;
+    --y: max(0, sign(var(--wcag-y-threshold) - y));
+    color: color(from var(--swatch-bg) xyz-d65 calc(var(--y) * 0.9505) var(--y) calc(var(--y) * 1.089));
+  }
+}
+
+@supports (color: contrast-color(#000)) {
+  .swatch-contrast-text {
+    color: contrast-color(var(--swatch-bg));
+  }
+}
+
+/* Dedicated drag handle: suppress text selection & browser touch gestures */
+.node-drag-handle {
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.node-drag-handle.is-dragging {
+  cursor: grabbing;
+}
+
+/* Subtle spring physics on drag release (disabled while actively dragging) */
+.node-spring {
+  transition: transform 320ms cubic-bezier(0.22, 1.3, 0.36, 1), opacity 200ms ease, filter 200ms ease, box-shadow 200ms ease;
+}
+
+.node-no-spring {
+  transition: opacity 200ms ease, filter 200ms ease, box-shadow 200ms ease;
+}
+
+/* Animated dashed magnetic preview tether */
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.tether-magnetic-preview {
+  animation: dash-flow 0.6s linear infinite;
+}
+
+/* Custom subtle scrollbars inside text nodes */
+.vault-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.vault-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.vault-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+
+.vault-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
