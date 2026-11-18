@@ -7,7 +7,6 @@ import { TetherLayer, type MagneticPreview, type WireDraft } from './components/
 import type {
   FilterType,
   NodeSize,
-  PortCorner,
   VaultBoardData,
   VaultEdge,
   VaultNode,
@@ -81,7 +80,7 @@ export function App() {
   const [magneticPreview, setMagneticPreview] = useState<MagneticPreview | null>(null);
   const [detachEdgeIds, setDetachEdgeIds] = useState<Set<string>>(() => new Set());
   const [justDockedEdgeId, setJustDockedEdgeId] = useState<string | null>(null);
-  const [wireDraft, setWireDraft] = useState<WireDraft | null>(null);
+  const [wireDraft] = useState<WireDraft | null>(null);
   const [spacePressed, setSpacePressed] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isFileDragOver, setIsFileDragOver] = useState(false);
@@ -509,74 +508,6 @@ export function App() {
     setMagneticPreview(null);
     setDetachEdgeIds(new Set());
   }, [hasEdgeBetween, showToast, triggerDockRipple]);
-
-  // Manual Corner-Port Wiring
-  const handleStartWire = useCallback(
-    (sourceId: string, sourcePort: PortCorner, clientX: number, clientY: number) => {
-      const el = canvasRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const cursorWorld = screenToWorld(
-        clientX - rect.left,
-        clientY - rect.top,
-        viewportRef.current
-      );
-
-      setWireDraft({ sourceId, sourcePort, cursorWorld, hoverTargetId: null });
-
-      const onMove = (ev: PointerEvent) => {
-        const pt = screenToWorld(
-          ev.clientX - rect.left,
-          ev.clientY - rect.top,
-          viewportRef.current
-        );
-        const hitEl = document.elementFromPoint(ev.clientX, ev.clientY);
-        const targetCard = hitEl?.closest<HTMLElement>('[data-node-id]');
-        const candidateId = targetCard?.dataset.nodeId ?? null;
-        const hoverTargetId =
-          candidateId && candidateId !== sourceId && !hasEdgeBetween(sourceId, candidateId)
-            ? candidateId
-            : null;
-
-        setWireDraft({ sourceId, sourcePort, cursorWorld: pt, hoverTargetId });
-      };
-
-      const onUp = (ev: PointerEvent) => {
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-        window.removeEventListener('pointercancel', onUp);
-
-        const hitEl = document.elementFromPoint(ev.clientX, ev.clientY);
-        const targetCard = hitEl?.closest<HTMLElement>('[data-node-id]');
-        const targetId = targetCard?.dataset.nodeId ?? null;
-
-        if (targetId && targetId !== sourceId && !hasEdgeBetween(sourceId, targetId)) {
-          const source = nodesRef.current.find((n) => n.id === sourceId);
-          const target = nodesRef.current.find((n) => n.id === targetId);
-          if (source && target) {
-            const closest = getClosestPorts(source, target, measuredSizesRef.current);
-            const newEdge: VaultEdge = {
-              id: makeId('edge'),
-              sourceId,
-              targetId,
-              sourcePort,
-              targetPort: closest.targetPort,
-              createdAt: Date.now(),
-            };
-            setEdges((prev) => [...prev, newEdge]);
-            triggerDockRipple(newEdge.id);
-            playSnap();
-          }
-        }
-        setWireDraft(null);
-      };
-
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
-      window.addEventListener('pointercancel', onUp);
-    },
-    [hasEdgeBetween, triggerDockRipple]
-  );
 
   // Canvas Panning (empty-canvas drag, Space+Drag, or middle-mouse drag)
   const handleCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -1233,7 +1164,6 @@ export function App() {
                 onStartDrag={handleStartNodeDrag}
                 onMoveDrag={handleMoveNodeDrag}
                 onEndDrag={handleEndNodeDrag}
-                onStartWire={handleStartWire}
                 onUpdateNode={handleUpdateNode}
                 onDeleteNode={handleDeleteNode}
                 onMeasure={handleMeasureNode}
@@ -1313,7 +1243,6 @@ export function App() {
                   onStartDrag={handleStartNodeDrag}
                   onMoveDrag={handleMoveNodeDrag}
                   onEndDrag={handleEndNodeDrag}
-                  onStartWire={handleStartWire}
                   onUpdateNode={handleUpdateNode}
                   onDeleteNode={handleDeleteNode}
                   onMeasure={handleMeasureNode}

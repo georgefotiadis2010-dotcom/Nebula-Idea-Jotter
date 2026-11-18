@@ -16,7 +16,7 @@ import {
   UnfoldVertical,
   Unlink,
 } from 'lucide-react';
-import type { NodeSize, PortCorner, VaultNode } from '../types/vault';
+import type { NodeSize, VaultNode } from '../types/vault';
 import { copyTextToClipboard, getContrastFallbackColor } from '../utils/clipboard';
 import { playCopy } from '../utils/sound';
 
@@ -27,7 +27,7 @@ interface NodeCardProps {
   isMatched: boolean;
   isDimmed: boolean;
   isWireTarget: boolean;
-  isWiringActive: boolean;
+  isWiringActive?: boolean;
   gridMode?: boolean;
   autoFocus?: boolean;
   isConnected?: boolean;
@@ -40,16 +40,10 @@ interface NodeCardProps {
   onStartDrag: (nodeId: string, clientX: number, clientY: number) => void;
   onMoveDrag: (clientX: number, clientY: number) => void;
   onEndDrag: () => void;
-  onStartWire: (nodeId: string, port: PortCorner, clientX: number, clientY: number) => void;
   onUpdateNode: (nodeId: string, patch: Partial<VaultNode>) => void;
   onDeleteNode: (nodeId: string) => void;
   onMeasure: (nodeId: string, size: NodeSize) => void;
 }
-
-const PORT_POSITIONS: { port: PortCorner; className: string; label: string }[] = [
-  { port: 'tr', className: '-right-2.5 top-1/2 -translate-y-1/2', label: 'Drag thread to connect' },
-  { port: 'tl', className: '-left-2.5 top-1/2 -translate-y-1/2', label: 'Drag thread to connect' },
-];
 
 /** Subtle natural tabletop card tilt (-1.3deg to +1.3deg) */
 function getTabletopTilt(id: string): number {
@@ -69,7 +63,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   isMatched,
   isDimmed,
   isWireTarget,
-  isWiringActive,
   gridMode = false,
   autoFocus,
   isConnected = false,
@@ -82,7 +75,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   onStartDrag,
   onMoveDrag,
   onEndDrag,
-  onStartWire,
   onUpdateNode,
   onDeleteNode,
   onMeasure,
@@ -275,30 +267,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         isDimmed ? 'opacity-25 saturate-50' : 'opacity-100',
       ].join(' ')}
     >
-      {/* 2 Tactile Side Thread Pins (canvas mode only) */}
-      {!gridMode &&
-        PORT_POSITIONS.map(({ port, className, label }) => (
-          <button
-            key={port}
-            type="button"
-            aria-label={label}
-            title="Pull thread to connect"
-            onPointerDown={(e) => {
-              if (e.button !== 0) return;
-              e.stopPropagation();
-              onStartWire(node.id, port, e.clientX, e.clientY);
-            }}
-            className={[
-              'absolute z-30 flex h-5 w-5 items-center justify-center rounded-full border border-white/25 bg-[#191D26] shadow-md transition-all duration-150',
-              'hover:scale-125 hover:border-sky-400 hover:bg-sky-500/25 hover:shadow-[0_0_12px_rgba(56,189,248,0.5)]',
-              isWiringActive ? 'opacity-100 scale-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-              className,
-            ].join(' ')}
-          >
-            <span className="h-2 w-2 rounded-full bg-sky-400" />
-          </button>
-        ))}
-
       {/* Clean Borderless Drag Row */}
       <div
         role={gridMode ? undefined : 'button'}
