@@ -4,13 +4,16 @@ import {
   Code2,
   Copy,
   ExternalLink,
+  FoldVertical,
   Globe,
   Heading,
   Image as ImageIcon,
+  Orbit,
   Palette,
   RefreshCw,
   StickyNote,
   Trash2,
+  UnfoldVertical,
 } from 'lucide-react';
 import type { NodeSize, PortCorner, VaultNode } from '../types/vault';
 import { copyTextToClipboard, getContrastFallbackColor } from '../utils/clipboard';
@@ -26,8 +29,11 @@ interface NodeCardProps {
   isWiringActive: boolean;
   gridMode?: boolean;
   autoFocus?: boolean;
+  clusterDots?: string[];
   onAutoFocusHandled?: () => void;
   onHoverNode?: (nodeId: string | null) => void;
+  onOrbitCluster?: (titleId: string) => void;
+  onToggleCollapseCluster?: (titleId: string) => void;
   onStartDrag: (nodeId: string, clientX: number, clientY: number) => void;
   onMoveDrag: (clientX: number, clientY: number) => void;
   onEndDrag: () => void;
@@ -63,8 +69,11 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   isWiringActive,
   gridMode = false,
   autoFocus,
+  clusterDots,
   onAutoFocusHandled,
   onHoverNode,
+  onOrbitCluster,
+  onToggleCollapseCluster,
   onStartDrag,
   onMoveDrag,
   onEndDrag,
@@ -436,6 +445,71 @@ export const NodeCard: React.FC<NodeCardProps> = ({
                 <p className="animate-editorial-reveal text-xs italic tracking-wide text-zinc-300/85">
                   {node.subtitle}
                 </p>
+              )}
+
+              {/* Interactive Editorial Constellation Bar */}
+              {!gridMode && clusterDots && clusterDots.length > 0 && (
+                <div
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="mt-3 flex flex-wrap items-center gap-1.5"
+                >
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-[#181B24]/85 px-2.5 py-1 text-[11px] font-medium text-zinc-300 backdrop-blur-md">
+                    <span className="flex items-center -space-x-1">
+                      {clusterDots.slice(0, 5).map((dotColor, i) => (
+                        <span
+                          key={i}
+                          style={{ backgroundColor: dotColor }}
+                          className="h-2.5 w-2.5 rounded-full ring-1 ring-[#101218]"
+                        />
+                      ))}
+                    </span>
+                    <span>
+                      {clusterDots.length} {clusterDots.length === 1 ? 'idea' : 'ideas'}
+                    </span>
+                  </span>
+
+                  {!node.collapsed && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOrbitCluster?.(node.id);
+                      }}
+                      title="Gather connected ideas into a radial orbit"
+                      className="inline-flex h-6 items-center gap-1 rounded-full border border-sky-400/25 bg-sky-500/15 px-2.5 text-[11px] font-medium text-sky-200 backdrop-blur-md transition-all hover:bg-sky-500/25 active:scale-95"
+                    >
+                      <Orbit className="h-3 w-3" aria-hidden="true" />
+                      Orbit
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleCollapseCluster?.(node.id);
+                    }}
+                    title={node.collapsed ? 'Bloom ideas back onto tabletop' : 'Fold connected ideas into title'}
+                    className={[
+                      'inline-flex h-6 items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium backdrop-blur-md transition-all active:scale-95',
+                      node.collapsed
+                        ? 'border-rose-400/35 bg-rose-500/20 text-rose-200 hover:bg-rose-500/30'
+                        : 'border-white/[0.12] bg-white/[0.06] text-zinc-300 hover:bg-white/[0.12] hover:text-white',
+                    ].join(' ')}
+                  >
+                    {node.collapsed ? (
+                      <>
+                        <UnfoldVertical className="h-3 w-3" aria-hidden="true" />
+                        Bloom
+                      </>
+                    ) : (
+                      <>
+                        <FoldVertical className="h-3 w-3" aria-hidden="true" />
+                        Fold
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           )}

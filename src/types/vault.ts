@@ -19,6 +19,7 @@ export interface TitleVaultNode extends BaseVaultNode {
   type: 'title';
   heading: string;
   subtitle?: string;
+  collapsed?: boolean;
 }
 
 export interface TextVaultNode extends BaseVaultNode {

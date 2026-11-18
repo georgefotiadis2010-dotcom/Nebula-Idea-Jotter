@@ -932,6 +932,105 @@ export function App() {
     setHoveredTitleId(target?.type === 'title' ? nodeId : null);
   }, []);
 
+  // Compute connected dot colors & folded child IDs for Title clusters
+  const { clusterDotsByTitle, hiddenByCollapseIds } = useMemo(() => {
+    const dotsMap: Record<string, string[]> = {};
+    const hidden = new Set<string>();
+    const nodeMap = new Map<string, VaultNode>();
+    for (const n of nodes) nodeMap.set(n.id, n);
+
+    const getColor = (n: VaultNode) => {
+      if (n.type === 'color') return n.hex;
+      if (n.type === 'link') return '#38BDF8';
+      if (n.type === 'image') return '#C084FC';
+      if (n.type === 'title') return '#F472B6';
+      return n.monospace ? '#34D399' : '#FBBF24';
+    };
+
+    for (const n of nodes) {
+      if (n.type !== 'title') continue;
+      const connected: VaultNode[] = [];
+      for (const e of edges) {
+        if (e.sourceId === n.id) {
+          const other = nodeMap.get(e.targetId);
+          if (other) connected.push(other);
+        } else if (e.targetId === n.id) {
+          const other = nodeMap.get(e.sourceId);
+          if (other) connected.push(other);
+        }
+      }
+      dotsMap[n.id] = connected.map(getColor);
+      if (n.collapsed) {
+        for (const child of connected) {
+          if (child.type !== 'title') hidden.add(child.id);
+        }
+      }
+    }
+    return { clusterDotsByTitle: dotsMap, hiddenByCollapseIds: hidden };
+  }, [nodes, edges]);
+
+  const visibleCanvasNodes = useMemo(
+    () => nodes.filter((n) => !hiddenByCollapseIds.has(n.id)),
+    [nodes, hiddenByCollapseIds]
+  );
+
+  // Orbit: arrange all connected ideas into a radial constellation around a Big Idea Title
+  const handleOrbitCluster = useCallback(
+    (titleId: string) => {
+      const titleNode = nodesRef.current.find((n) => n.id === titleId);
+      if (!titleNode) return;
+
+      const connectedIds: string[] = [];
+      for (const e of edgesRef.current) {
+        if (e.sourceId === titleId && !connectedIds.includes(e.targetId)) {
+          connectedIds.push(e.targetId);
+        } else if (e.targetId === titleId && !connectedIds.includes(e.sourceId)) {
+          connectedIds.push(e.sourceId);
+        }
+      }
+      if (connectedIds.length === 0) return;
+
+      const tSize = getNodeDimensions(titleNode, measuredSizesRef.current);
+      const centerX = titleNode.x + tSize.width / 2;
+      const centerY = titleNode.y + tSize.height / 2;
+      const radius = Math.max(290, 175 + connectedIds.length * 36);
+
+      const nextPos = new Map<string, { x: number; y: number }>();
+      connectedIds.forEach((id, idx) => {
+        const angle = (idx / connectedIds.length) * Math.PI * 2 - Math.PI / 2;
+        const child = nodesRef.current.find((n) => n.id === id);
+        if (!child) return;
+        const cSize = getNodeDimensions(child, measuredSizesRef.current);
+        nextPos.set(id, {
+          x: Math.round(centerX + Math.cos(angle) * radius - cSize.width / 2),
+          y: Math.round(centerY + Math.sin(angle) * radius - cSize.height / 2),
+        });
+      });
+
+      setNodes((prev) =>
+        prev.map((n) => {
+          const p = nextPos.get(n.id);
+          return p ? { ...n, x: p.x, y: p.y } : n;
+        })
+      );
+      playSnap();
+      showToast('Gathered ideas into orbit');
+    },
+    [showToast]
+  );
+
+  const handleToggleCollapseCluster = useCallback(
+    (titleId: string) => {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === titleId && n.type === 'title' ? { ...n, collapsed: !n.collapsed } : n
+        )
+      );
+      playPop();
+    },
+    []
+  );
+
   // Node counts by type
   const counts = useMemo<Record<FilterType, number>>(() => {
     const c: Record<FilterType, number> = {
@@ -1065,7 +1164,7 @@ export function App() {
           >
             {/* Synchronized SVG Tether Overlay */}
             <TetherLayer
-              nodes={nodes}
+              nodes={visibleCanvasNodes}
               edges={edges}
               measuredSizes={measuredSizes}
               magneticPreview={magneticPreview}
@@ -1078,7 +1177,7 @@ export function App() {
 
             {/* Spatial HTML Nodes */}
             <div className="pointer-events-auto">
-              {nodes.map((node) => (
+              {visibleCanvasNodes.map((node) => (
                 <NodeCard
                   key={node.id}
                   node={node}
@@ -1095,8 +1194,11 @@ export function App() {
                   isWireTarget={wireDraft?.hoverTargetId === node.id}
                   isWiringActive={wireDraft !== null}
                   autoFocus={autoFocusNodeId === node.id}
+                  clusterDots={node.type === 'title' ? clusterDotsByTitle[node.id] : undefined}
                   onAutoFocusHandled={() => setAutoFocusNodeId(null)}
                   onHoverNode={handleHoverNode}
+                  onOrbitCluster={handleOrbitCluster}
+                  onToggleCollapseCluster={handleToggleCollapseCluster}
                   onStartDrag={handleStartNodeDrag}
                   onMoveDrag={handleMoveNodeDrag}
                   onEndDrag={handleEndNodeDrag}
