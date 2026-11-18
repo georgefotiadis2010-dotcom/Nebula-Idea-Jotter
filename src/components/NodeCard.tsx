@@ -75,7 +75,11 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(
+    () => node.type === 'title' && !node.heading.trim()
+  );
   const copyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -96,8 +100,12 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   }, [node.id, gridMode, onMeasure]);
 
   useEffect(() => {
-    if (autoFocus && node.type === 'text' && textareaRef.current) {
+    if (!autoFocus) return;
+    if (node.type === 'text' && textareaRef.current) {
       textareaRef.current.focus();
+      onAutoFocusHandled?.();
+    } else if (node.type === 'title' && titleInputRef.current) {
+      titleInputRef.current.focus();
       onAutoFocusHandled?.();
     }
   }, [autoFocus, node.type, onAutoFocusHandled]);
@@ -350,23 +358,63 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
       {/* Body by Node Type */}
       {node.type === 'title' && (
-        <div className="px-3.5 pb-3.5 pt-1">
-          <input
-            type="text"
-            value={node.heading}
-            placeholder="Big Idea Title..."
-            onChange={(e) => onUpdateNode(node.id, { heading: e.target.value })}
-            onKeyDown={(e) => e.stopPropagation()}
-            className="w-full bg-transparent text-lg font-bold tracking-tight text-white placeholder:text-zinc-500 focus:outline-none"
-          />
-          <input
-            type="text"
-            value={node.subtitle ?? ''}
-            placeholder="Add a short tagline or theme..."
-            onChange={(e) => onUpdateNode(node.id, { subtitle: e.target.value })}
-            onKeyDown={(e) => e.stopPropagation()}
-            className="mt-1 w-full bg-transparent text-xs text-zinc-400 placeholder:text-zinc-600 focus:outline-none"
-          />
+        <div className="px-4 pb-4 pt-1">
+          {isEditingTitle || !node.heading.trim() ? (
+            <div className="space-y-1.5">
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={node.heading}
+                placeholder="Name your big idea..."
+                onChange={(e) => onUpdateNode(node.id, { heading: e.target.value })}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter' && node.heading.trim()) {
+                    e.preventDefault();
+                    setIsEditingTitle(false);
+                  }
+                }}
+                onBlur={() => {
+                  if (node.heading.trim()) setIsEditingTitle(false);
+                }}
+                className="font-editorial w-full border-b border-rose-400/40 bg-transparent pb-1 text-[28px] leading-tight text-white placeholder:text-zinc-500 focus:border-rose-300 focus:outline-none"
+              />
+              <input
+                type="text"
+                value={node.subtitle ?? ''}
+                placeholder="Optional subtitle or theme... (Enter to set)"
+                onChange={(e) => onUpdateNode(node.id, { subtitle: e.target.value })}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter' && node.heading.trim()) {
+                    e.preventDefault();
+                    setIsEditingTitle(false);
+                  }
+                }}
+                className="w-full bg-transparent text-xs text-zinc-400 placeholder:text-zinc-600 focus:outline-none"
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditingTitle(true);
+                requestAnimationFrame(() => titleInputRef.current?.focus());
+              }}
+              title="Click to edit title"
+              className="w-full text-left focus:outline-none"
+            >
+              <h2 className="font-editorial animate-editorial-reveal bg-gradient-to-br from-white via-zinc-100 to-rose-200/90 bg-clip-text text-[32px] leading-[1.08] font-normal text-transparent">
+                {node.heading}
+              </h2>
+              <div className="animate-editorial-rule my-2.5 h-[1.5px] w-full bg-gradient-to-r from-rose-400/80 via-sky-400/50 to-transparent" />
+              {node.subtitle?.trim() && (
+                <p className="animate-editorial-reveal text-xs italic tracking-wide text-zinc-300/85">
+                  {node.subtitle}
+                </p>
+              )}
+            </button>
+          )}
         </div>
       )}
 

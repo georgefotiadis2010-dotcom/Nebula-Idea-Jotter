@@ -661,6 +661,7 @@ export function App() {
       updatedAt: now,
     };
     setNodes((prev) => [...prev, newNode]);
+    setAutoFocusNodeId(newNode.id);
     playPop();
   }, [containerSize.width, containerSize.height, getSpawnWorldPoint]);
 
