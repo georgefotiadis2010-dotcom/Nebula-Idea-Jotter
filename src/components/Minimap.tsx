@@ -78,7 +78,7 @@ export const Minimap: React.FC<MinimapProps> = ({
   return (
     <aside
       aria-label="Canvas minimap"
-      className="glass-bubble fixed bottom-4 right-4 z-40 overflow-hidden rounded-[24px] border border-white/[0.12]"
+      className="labs-surface fixed bottom-4 right-4 z-40 overflow-hidden rounded-2xl border border-white/[0.08]"
     >
       <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-2.5 py-1.5">
         <span className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-400">

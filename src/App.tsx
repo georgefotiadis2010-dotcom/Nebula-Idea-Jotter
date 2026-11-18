@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CommandBar } from './components/CommandBar';
+import { LeftDock } from './components/LeftDock';
 import { Minimap } from './components/Minimap';
 import { NodeCard } from './components/NodeCard';
 import { TetherLayer, type MagneticPreview, type WireDraft } from './components/TetherLayer';
@@ -67,6 +68,10 @@ export function App() {
 
   // Audio mute
   const [isMuted, setIsMuted] = useState(() => getSoundMuted());
+
+  // View mode & smooth viewport easing
+  const [viewMode, setViewMode] = useState<'canvas' | 'grid'>('canvas');
+  const [isSmoothViewport, setIsSmoothViewport] = useState(false);
 
   // Interactions
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
@@ -660,17 +665,145 @@ export function App() {
     }
   };
 
-  // Pan viewport to center a world coordinate
+  // Pan viewport smoothly to center a world coordinate
+  const smoothTimerRef = useRef<number | null>(null);
+  const triggerSmoothViewport = useCallback(() => {
+    setIsSmoothViewport(true);
+    if (smoothTimerRef.current) window.clearTimeout(smoothTimerRef.current);
+    smoothTimerRef.current = window.setTimeout(() => setIsSmoothViewport(false), 450);
+  }, []);
+
   const panToWorld = useCallback(
     (wx: number, wy: number) => {
+      triggerSmoothViewport();
       setViewport((prev) => ({
         ...prev,
         x: containerSize.width / 2 - wx * prev.zoom,
         y: containerSize.height / 2 - wy * prev.zoom,
       }));
     },
-    [containerSize.width, containerSize.height]
+    [containerSize.width, containerSize.height, triggerSmoothViewport]
   );
+
+  // Quick-add actions from LeftDock
+  const handleAddNote = useCallback(() => {
+    const center = getSpawnWorldPoint({
+      x: containerSize.width / 2 + (Math.random() - 0.5) * 60,
+      y: containerSize.height / 2 + (Math.random() - 0.5) * 60,
+    });
+    const now = Date.now();
+    const newNode: VaultNode = {
+      id: makeId('txt'),
+      type: 'text',
+      x: Math.round(center.x - 145),
+      y: Math.round(center.y - 65),
+      width: 290,
+      content: '',
+      monospace: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setNodes((prev) => [...prev, newNode]);
+    setAutoFocusNodeId(newNode.id);
+    playPop();
+  }, [containerSize.width, containerSize.height, getSpawnWorldPoint]);
+
+  const handleAddColor = useCallback(() => {
+    const palette = ['#8AB4F8', '#81C995', '#FDD663', '#F28B82', '#C58AF9', '#78D9EC'];
+    const hex = palette[Math.floor(Math.random() * palette.length)];
+    const center = getSpawnWorldPoint({
+      x: containerSize.width / 2 + (Math.random() - 0.5) * 80,
+      y: containerSize.height / 2 + (Math.random() - 0.5) * 80,
+    });
+    const now = Date.now();
+    setNodes((prev) => [
+      ...prev,
+      {
+        id: makeId('clr'),
+        type: 'color',
+        x: Math.round(center.x - 110),
+        y: Math.round(center.y - 70),
+        width: 220,
+        hex,
+        label: 'Color Swatch',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    playPop();
+  }, [containerSize.width, containerSize.height, getSpawnWorldPoint]);
+
+  const handleAddLink = useCallback(() => {
+    const raw = window.prompt('Paste a URL (https://...)');
+    if (!raw) return;
+    const parsed = parseUrlPayload(raw.startsWith('http') ? raw : `https://${raw}`);
+    if (!parsed) {
+      showToast('Invalid URL');
+      return;
+    }
+    const center = getSpawnWorldPoint({
+      x: containerSize.width / 2 + (Math.random() - 0.5) * 60,
+      y: containerSize.height / 2 + (Math.random() - 0.5) * 60,
+    });
+    const now = Date.now();
+    setNodes((prev) => [
+      ...prev,
+      {
+        id: makeId('lnk'),
+        type: 'link',
+        x: Math.round(center.x - 140),
+        y: Math.round(center.y - 60),
+        width: 280,
+        url: parsed.url,
+        domain: parsed.domain,
+        title: parsed.title,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    playPop();
+  }, [containerSize.width, containerSize.height, getSpawnWorldPoint, showToast]);
+
+  // Tidy / Auto-arrange nodes into a clean studio grid
+  const handleTidyLayout = useCallback(() => {
+    if (nodesRef.current.length === 0) return;
+    const cols = Math.max(2, Math.min(4, Math.ceil(Math.sqrt(nodesRef.current.length))));
+    const gapX = 56;
+    const gapY = 48;
+    const colWidths = new Array<number>(cols).fill(290);
+    const rowHeights: number[] = [];
+
+    nodesRef.current.forEach((n, idx) => {
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      const size = getNodeDimensions(n, measuredSizesRef.current);
+      colWidths[col] = Math.max(colWidths[col], size.width);
+      rowHeights[row] = Math.max(rowHeights[row] ?? 0, size.height);
+    });
+
+    const startX = 140;
+    const startY = 130;
+    const colOffsets: number[] = [startX];
+    for (let c = 1; c < cols; c++) {
+      colOffsets[c] = colOffsets[c - 1] + colWidths[c - 1] + gapX;
+    }
+    const rowOffsets: number[] = [startY];
+    for (let r = 1; r < rowHeights.length; r++) {
+      rowOffsets[r] = rowOffsets[r - 1] + rowHeights[r - 1] + gapY;
+    }
+
+    setNodes((prev) =>
+      prev.map((n, idx) => ({
+        ...n,
+        x: Math.round(colOffsets[idx % cols]),
+        y: Math.round(rowOffsets[Math.floor(idx / cols)]),
+      }))
+    );
+    triggerSmoothViewport();
+    setViewport({ x: 0, y: 0, zoom: 1 });
+    playSnap();
+    showToast('Tidied canvas layout');
+  }, [showToast, triggerSmoothViewport]);
 
   // Search & Type Filter matching
   const { matchedIds, dimmedIds, matchedNodesList } = useMemo(() => {
@@ -803,53 +936,31 @@ export function App() {
         counts={counts}
       />
 
-      {/* Infinite Spatial Canvas */}
-      <div
-        ref={canvasRef}
-        onPointerDown={handleCanvasPointerDown}
-        onPointerMove={handleCanvasPointerMove}
-        onPointerUp={handleCanvasPointerUp}
-        onPointerCancel={handleCanvasPointerUp}
-        onDoubleClick={handleCanvasDoubleClick}
-        style={{
-          backgroundImage: `radial-gradient(circle, rgba(255, 255, 255, 0.14) ${dotRadius}px, transparent ${dotRadius}px)`,
-          backgroundSize: `${dotSpacing}px ${dotSpacing}px`,
-          backgroundPosition: `${viewport.x}px ${viewport.y}px`,
-          cursor: isPanning ? 'grabbing' : spacePressed ? 'grab' : 'default',
-        }}
-        className="relative h-full w-full select-none"
-      >
-        {/* Hardware-Accelerated World Layer */}
-        <div
-          style={{
-            transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.zoom})`,
-            transformOrigin: '0 0',
-          }}
-          className="pointer-events-none absolute left-0 top-0 h-px w-px will-change-transform"
-        >
-          {/* Synchronized SVG Tether Overlay */}
-          <TetherLayer
-            nodes={nodes}
-            edges={edges}
-            measuredSizes={measuredSizes}
-            magneticPreview={magneticPreview}
-            wireDraft={wireDraft}
-            dimmedNodeIds={dimmedIds}
-            onSeverEdge={handleSeverEdge}
-          />
+      {/* Floating Left Creation & View Dock */}
+      <LeftDock
+        viewMode={viewMode}
+        onToggleView={setViewMode}
+        onAddNote={handleAddNote}
+        onAddColor={handleAddColor}
+        onAddLink={handleAddLink}
+        onTidyLayout={handleTidyLayout}
+      />
 
-          {/* Spatial HTML Nodes */}
-          <div className="pointer-events-auto">
+      {viewMode === 'grid' ? (
+        /* Smooth Bento Grid View */
+        <main className="vault-scroll h-full w-full overflow-y-auto px-20 pb-16 pt-24">
+          <div className="mx-auto grid max-w-6xl grid-cols-1 items-start gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {nodes.map((node) => (
               <NodeCard
                 key={node.id}
                 node={node}
-                zoom={viewport.zoom}
-                isDragging={draggingNodeId === node.id}
+                zoom={1}
+                gridMode
+                isDragging={false}
                 isMatched={matchedIds.has(node.id)}
                 isDimmed={dimmedIds.has(node.id)}
-                isWireTarget={wireDraft?.hoverTargetId === node.id}
-                isWiringActive={wireDraft !== null}
+                isWireTarget={false}
+                isWiringActive={false}
                 autoFocus={autoFocusNodeId === node.id}
                 onAutoFocusHandled={() => setAutoFocusNodeId(null)}
                 onStartDrag={handleStartNodeDrag}
@@ -862,8 +973,73 @@ export function App() {
               />
             ))}
           </div>
+        </main>
+      ) : (
+        /* Infinite Spatial Canvas */
+        <div
+          ref={canvasRef}
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerUp}
+          onPointerCancel={handleCanvasPointerUp}
+          onDoubleClick={handleCanvasDoubleClick}
+          style={{
+            backgroundImage: `radial-gradient(circle, rgba(255, 255, 255, 0.14) ${dotRadius}px, transparent ${dotRadius}px)`,
+            backgroundSize: `${dotSpacing}px ${dotSpacing}px`,
+            backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+            cursor: isPanning ? 'grabbing' : spacePressed ? 'grab' : 'default',
+          }}
+          className="relative h-full w-full select-none"
+        >
+          {/* Hardware-Accelerated World Layer */}
+          <div
+            style={{
+              transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.zoom})`,
+              transformOrigin: '0 0',
+            }}
+            className={[
+              'pointer-events-none absolute left-0 top-0 h-px w-px will-change-transform',
+              isSmoothViewport ? 'viewport-smooth' : '',
+            ].join(' ')}
+          >
+            {/* Synchronized SVG Tether Overlay */}
+            <TetherLayer
+              nodes={nodes}
+              edges={edges}
+              measuredSizes={measuredSizes}
+              magneticPreview={magneticPreview}
+              wireDraft={wireDraft}
+              dimmedNodeIds={dimmedIds}
+              onSeverEdge={handleSeverEdge}
+            />
+
+            {/* Spatial HTML Nodes */}
+            <div className="pointer-events-auto">
+              {nodes.map((node) => (
+                <NodeCard
+                  key={node.id}
+                  node={node}
+                  zoom={viewport.zoom}
+                  isDragging={draggingNodeId === node.id}
+                  isMatched={matchedIds.has(node.id)}
+                  isDimmed={dimmedIds.has(node.id)}
+                  isWireTarget={wireDraft?.hoverTargetId === node.id}
+                  isWiringActive={wireDraft !== null}
+                  autoFocus={autoFocusNodeId === node.id}
+                  onAutoFocusHandled={() => setAutoFocusNodeId(null)}
+                  onStartDrag={handleStartNodeDrag}
+                  onMoveDrag={handleMoveNodeDrag}
+                  onEndDrag={handleEndNodeDrag}
+                  onStartWire={handleStartWire}
+                  onUpdateNode={handleUpdateNode}
+                  onDeleteNode={handleDeleteNode}
+                  onMeasure={handleMeasureNode}
+                />
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Bottom-Left Subtle Studio Hints */}
       <div className="pointer-events-none fixed bottom-4 left-4 z-30 hidden items-center gap-3 rounded-xl border border-white/[0.06] bg-[#12151B]/70 px-3 py-1.5 text-[11px] text-zinc-500 backdrop-blur-md md:flex">
@@ -884,15 +1060,17 @@ export function App() {
         </span>
       </div>
 
-      {/* Collapsible Bottom-Right Minimap */}
-      <Minimap
-        nodes={nodes}
-        edges={edges}
-        measuredSizes={measuredSizes}
-        viewport={viewport}
-        containerSize={containerSize}
-        onPanToWorld={panToWorld}
-      />
+      {/* Collapsible Bottom-Right Minimap (canvas mode only) */}
+      {viewMode === 'canvas' && (
+        <Minimap
+          nodes={nodes}
+          edges={edges}
+          measuredSizes={measuredSizes}
+          viewport={viewport}
+          containerSize={containerSize}
+          onPanToWorld={panToWorld}
+        />
+      )}
 
       {/* File Drop Overlay */}
       {isFileDragOver && (
