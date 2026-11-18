@@ -35,13 +35,13 @@ interface NodeCardProps {
 }
 
 const PORT_POSITIONS: { port: PortCorner; className: string; label: string }[] = [
-  { port: 'tl', className: 'left-[10%] top-[10%]', label: 'Top-left connection port' },
-  { port: 'tr', className: 'right-[10%] top-[10%]', label: 'Top-right connection port' },
-  { port: 'bl', className: 'bottom-[10%] left-[10%]', label: 'Bottom-left connection port' },
-  { port: 'br', className: 'bottom-[10%] right-[10%]', label: 'Bottom-right connection port' },
+  { port: 'tl', className: 'left-3 top-3', label: 'Top-left connection port' },
+  { port: 'tr', className: 'right-3 top-3', label: 'Top-right connection port' },
+  { port: 'bl', className: 'bottom-3 left-3', label: 'Bottom-left connection port' },
+  { port: 'br', className: 'bottom-3 right-3', label: 'Bottom-right connection port' },
 ];
 
-/** Deterministic organic 8-value border-radius pair per node ID for irregular water-bubble shapes */
+/** Deterministic organic 8-value border-radius pair per node ID (safe 22%-38% range so content never clips) */
 function getBubbleShape(id: string): { r1: string; r2: string; duration: string } {
   let h = 2166136261;
   for (let i = 0; i < id.length; i++) {
@@ -51,19 +51,19 @@ function getBubbleShape(id: string): { r1: string; r2: string; duration: string 
   const pick = (shift: number, min: number, span: number) =>
     min + (((h >>> shift) & 0xff) % span);
 
-  const tl1 = pick(0, 34, 24);
-  const tr1 = 100 - tl1 + (pick(4, 0, 9) - 4);
-  const br1 = pick(8, 36, 24);
-  const bl1 = 100 - br1 + (pick(12, 0, 9) - 4);
+  const tl1 = pick(0, 22, 14);
+  const tr1 = pick(4, 24, 14);
+  const br1 = pick(8, 22, 14);
+  const bl1 = pick(12, 24, 14);
 
-  const vtl1 = pick(16, 36, 24);
-  const vtr1 = pick(20, 34, 24);
-  const vbr1 = 100 - vtr1 + (pick(2, 0, 9) - 4);
-  const vbl1 = 100 - vtl1 + (pick(6, 0, 9) - 4);
+  const vtl1 = pick(16, 24, 14);
+  const vtr1 = pick(20, 22, 14);
+  const vbr1 = pick(2, 24, 14);
+  const vbl1 = pick(6, 22, 14);
 
   const r1 = `${tl1}% ${tr1}% ${br1}% ${bl1}% / ${vtl1}% ${vtr1}% ${vbr1}% ${vbl1}%`;
-  const r2 = `${tl1 + 5}% ${tr1 - 5}% ${br1 - 4}% ${bl1 + 4}% / ${vtl1 - 5}% ${vtr1 + 5}% ${vbr1 - 4}% ${vbl1 + 4}%`;
-  const duration = `${8 + (pick(10, 0, 5))}s`;
+  const r2 = `${tl1 + 4}% ${tr1 - 3}% ${br1 + 3}% ${bl1 - 4}% / ${vtl1 - 3}% ${vtr1 + 4}% ${vbr1 - 4}% ${vbl1 + 3}%`;
+  const duration = `${8 + pick(10, 0, 5)}s`;
 
   return { r1, r2, duration };
 }
@@ -227,45 +227,68 @@ export const NodeCard: React.FC<NodeCardProps> = ({
       data-node-id={node.id}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
-      style={
-        {
-          transform: `translate3d(${node.x}px, ${node.y}px, 0)`,
-          width: `${Math.max(node.width, node.type === 'color' ? 230 : 270)}px`,
-          '--bubble-r1': bubbleShape.r1,
-          '--bubble-r2': bubbleShape.r2,
-          animationDuration: bubbleShape.duration,
-        } as React.CSSProperties
-      }
+      style={{
+        transform: `translate3d(${node.x}px, ${node.y}px, 0)`,
+        width: `${Math.max(node.width + 24, node.type === 'color' ? 240 : 290)}px`,
+      }}
       className={[
-        'water-bubble group absolute left-0 top-0 border',
-        isDragging ? 'node-no-spring water-bubble-dragging z-40' : 'node-spring z-10',
-        isWireTarget
-          ? 'border-emerald-400/80 ring-2 ring-emerald-400/35'
-          : isMatched
-            ? 'border-sky-400/75 ring-2 ring-sky-400/30 shadow-[0_0_36px_rgba(138,180,248,0.28)]'
-            : 'border-white/[0.18] hover:border-white/[0.32]',
+        'group absolute left-0 top-0',
+        isDragging ? 'node-no-spring z-40' : 'node-spring z-10',
         isDimmed ? 'opacity-25 saturate-50' : 'opacity-100',
       ].join(' ')}
     >
-      {/* Curved water-bubble specular reflection & ambient tint */}
-      <div
-        aria-hidden="true"
-        style={{
-          background: `radial-gradient(120% 80% at 24% 8%, ${ambientGlow}, transparent 68%)`,
-          borderRadius: 'inherit',
-        }}
-        className="pointer-events-none absolute inset-0"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-[14%] top-[7%] h-3 w-[34%] -rotate-12 rounded-full bg-white/25 blur-[2px]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute right-[16%] bottom-[8%] h-2 w-[22%] -rotate-6 rounded-full bg-sky-300/20 blur-[2px]"
-      />
+      {/* Floating Hover Action Pill (stays outside the bubble so rest state is pure) */}
+      <div className="pointer-events-none absolute -top-3.5 right-6 z-30 flex items-center gap-0.5 rounded-full border border-white/15 bg-[#141821]/90 px-1.5 py-0.5 opacity-0 shadow-lg backdrop-blur-xl transition-all duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+        {node.type === 'text' && (
+          <button
+            type="button"
+            aria-pressed={node.monospace}
+            aria-label="Toggle monospace font"
+            title={node.monospace ? 'Switch to proportional font' : 'Switch to monospace font'}
+            onClick={() => onUpdateNode(node.id, { monospace: !node.monospace })}
+            className={[
+              'flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors',
+              node.monospace
+                ? 'bg-emerald-500/25 text-emerald-200'
+                : 'text-zinc-300 hover:bg-white/[0.12] hover:text-white',
+            ].join(' ')}
+          >
+            <Code2 className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        )}
 
-      {/* 4 Corner Connection Ports */}
+        {node.type !== 'image' && (
+          <button
+            type="button"
+            aria-label={`Copy ${typeMeta.label.toLowerCase()}`}
+            title="Copy to clipboard"
+            onClick={() => {
+              if (node.type === 'color') triggerCopy(node.hex);
+              else if (node.type === 'link') triggerCopy(node.url);
+              else if (node.type === 'text') triggerCopy(node.content);
+            }}
+            className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-white/[0.12] hover:text-white"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+          </button>
+        )}
+
+        <button
+          type="button"
+          aria-label={`Delete ${typeMeta.label.toLowerCase()} node`}
+          title="Delete node"
+          onClick={() => onDeleteNode(node.id)}
+          className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-rose-500/25 hover:text-rose-200"
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </div>
+
+      {/* 4 Perimeter Connection Ports */}
       {PORT_POSITIONS.map(({ port, className, label }) => (
         <button
           key={port}
@@ -278,7 +301,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             onStartWire(node.id, port, e.clientX, e.clientY);
           }}
           className={[
-            'absolute z-30 flex h-4 w-4 items-center justify-center rounded-full border border-white/35 bg-[#141821]/90 backdrop-blur-md transition-all duration-150',
+            'absolute z-30 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/35 bg-[#141821]/90 backdrop-blur-md transition-all duration-150',
             'hover:scale-125 hover:border-sky-400 hover:bg-sky-400/25',
             isWiringActive ? 'opacity-100 scale-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
             className,
@@ -288,23 +311,53 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         </button>
       ))}
 
-      {/* Dedicated Drag Handle Header */}
+      {/* Organic Water-Bubble Shell (overflow-hidden guarantees content never spills outside) */}
       <div
         role="button"
         tabIndex={0}
-        aria-label={`${typeMeta.label} node handle`}
+        aria-label={`${typeMeta.label} bubble handle`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onLostPointerCapture={handleLostCapture}
+        style={
+          {
+            '--bubble-r1': bubbleShape.r1,
+            '--bubble-r2': bubbleShape.r2,
+            animationDuration: bubbleShape.duration,
+          } as React.CSSProperties
+        }
         className={[
-          'node-drag-handle relative z-10 flex items-center justify-between gap-2 px-7 pt-5 pb-1',
-          isDragging ? 'is-dragging' : '',
+          'water-bubble node-drag-handle relative overflow-hidden border',
+          isDragging ? 'water-bubble-dragging is-dragging' : '',
+          isWireTarget
+            ? 'border-emerald-400/80 ring-2 ring-emerald-400/35'
+            : isMatched
+              ? 'border-sky-400/75 ring-2 ring-sky-400/30 shadow-[0_0_36px_rgba(138,180,248,0.28)]'
+              : 'border-white/[0.18] group-hover:border-white/[0.32]',
         ].join(' ')}
       >
-        <div className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/[0.08] px-2.5 py-1 ring-1 ring-white/[0.08]">
-          <GripHorizontal className="h-3 w-3 shrink-0 text-zinc-300" aria-hidden="true" />
+        {/* Curved water-bubble specular reflection & ambient tint */}
+        <div
+          aria-hidden="true"
+          style={{
+            background: `radial-gradient(120% 80% at 24% 8%, ${ambientGlow}, transparent 68%)`,
+          }}
+          className="pointer-events-none absolute inset-0"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-[12%] top-[6%] h-2.5 w-[32%] -rotate-12 rounded-full bg-white/25 blur-[2px]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[14%] bottom-[7%] h-2 w-[20%] -rotate-6 rounded-full bg-sky-300/20 blur-[2px]"
+        />
+
+        {/* Subtle integrated type pill */}
+        <div className="relative z-10 flex items-center gap-1.5 px-7 pt-5 pb-1">
+          <GripHorizontal className="h-3 w-3 shrink-0 text-zinc-400/80" aria-hidden="true" />
           <TypeIcon className={`h-3 w-3 shrink-0 ${typeMeta.accent}`} aria-hidden="true" />
-          <span className="truncate text-[11px] font-medium tracking-wide text-zinc-200">
+          <span className="truncate text-[11px] font-medium tracking-wide text-zinc-300/90">
             {node.type === 'text' && node.title
               ? node.title
               : node.type === 'color' && node.label
@@ -315,167 +368,114 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-1 opacity-75 transition-opacity group-hover:opacity-100">
-          {node.type === 'text' && (
-            <button
-              type="button"
-              aria-pressed={node.monospace}
-              aria-label="Toggle monospace font"
-              title={node.monospace ? 'Switch to proportional font' : 'Switch to monospace font'}
-              onClick={() => onUpdateNode(node.id, { monospace: !node.monospace })}
+        {/* Live status announcement for copy feedback */}
+        <span className="sr-only" role="status">
+          {copied ? 'Copied to clipboard' : ''}
+        </span>
+
+        {/* Body by Node Type (generous safe-area padding so nothing touches curved edges) */}
+        {node.type === 'text' && (
+          <div className="relative z-10 px-7 pb-6 pt-1">
+            <textarea
+              ref={textareaRef}
+              value={node.content}
+              placeholder="Write a note, code snippet, or lyrics..."
+              spellCheck={!node.monospace}
+              onChange={(e) => onUpdateNode(node.id, { content: e.target.value })}
+              onKeyDown={(e) => e.stopPropagation()}
+              rows={3}
               className={[
-                'flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors',
-                node.monospace
-                  ? 'bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-400/30'
-                  : 'text-zinc-300 hover:bg-white/[0.12] hover:text-white',
+                'vault-scroll w-full resize-none bg-transparent text-[13px] leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none',
+                node.monospace ? 'font-mono-code text-[12px] text-emerald-100/95' : '',
               ].join(' ')}
-            >
-              <Code2 className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          )}
-
-          {node.type !== 'image' && (
-            <button
-              type="button"
-              aria-label={`Copy ${typeMeta.label.toLowerCase()}`}
-              title="Copy to clipboard"
-              onClick={() => {
-                if (node.type === 'color') triggerCopy(node.hex);
-                else if (node.type === 'link') triggerCopy(node.url);
-                else if (node.type === 'text') triggerCopy(node.content);
-              }}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-white/[0.12] hover:text-white"
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-            </button>
-          )}
-
-          <button
-            type="button"
-            aria-label={`Delete ${typeMeta.label.toLowerCase()} node`}
-            title="Delete node"
-            onClick={() => onDeleteNode(node.id)}
-            className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-rose-500/25 hover:text-rose-200"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-
-      {/* Live status announcement for copy feedback */}
-      <span className="sr-only" role="status">
-        {copied ? 'Copied to clipboard' : ''}
-      </span>
-
-      {/* Body by Node Type */}
-      {node.type === 'text' && (
-        <div className="relative z-10 px-7 pb-6 pt-1.5">
-          <textarea
-            ref={textareaRef}
-            value={node.content}
-            placeholder="Write a note, code snippet, or lyrics..."
-            spellCheck={!node.monospace}
-            onChange={(e) => onUpdateNode(node.id, { content: e.target.value })}
-            onKeyDown={(e) => e.stopPropagation()}
-            rows={3}
-            className={[
-              'vault-scroll w-full resize-none bg-transparent text-[13px] leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none',
-              node.monospace ? 'font-mono-code text-[12.5px] text-emerald-100/95' : '',
-            ].join(' ')}
-          />
-        </div>
-      )}
-
-      {node.type === 'color' && (
-        <div className="relative z-10 px-6 pb-6 pt-2">
-          <button
-            type="button"
-            onClick={() => triggerCopy(node.hex)}
-            title="Click to copy hex color"
-            style={
-              {
-                backgroundColor: node.hex,
-                '--swatch-bg': node.hex,
-                '--swatch-fallback-fg': getContrastFallbackColor(node.hex),
-                borderRadius: '46% 54% 48% 52% / 52% 44% 56% 48%',
-              } as React.CSSProperties
-            }
-            className="swatch-contrast-text flex h-28 w-full flex-col items-center justify-center gap-1.5 border border-white/25 p-4 text-center shadow-[inset_0_3px_8px_rgba(255,255,255,0.45),inset_0_-6px_14px_rgba(0,0,0,0.2)] transition-transform active:scale-[0.97]"
-          >
-            <span className="font-mono-code text-base font-semibold tracking-tight">
-              {node.hex}
-            </span>
-            <span className="rounded-full bg-black/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-md">
-              {copied ? 'Copied' : 'Tap to copy'}
-            </span>
-          </button>
-        </div>
-      )}
-
-      {node.type === 'link' && (
-        <div className="relative z-10 flex flex-col gap-2.5 px-7 pb-7 pt-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/25 bg-sky-400/15 px-2.5 py-0.5 text-[11px] font-medium text-sky-200">
-              <Globe className="h-3 w-3" aria-hidden="true" />
-              {node.domain}
-            </span>
-            <a
-              href={node.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Open ${node.domain} in new tab`}
-              title="Open link"
-              className="inline-flex h-7 items-center gap-1 rounded-full border border-white/20 bg-white/[0.1] px-2.5 text-[11px] font-medium text-zinc-100 transition-colors hover:border-sky-400/45 hover:bg-sky-400/20 hover:text-sky-100"
-            >
-              Open
-              <ExternalLink className="h-3 w-3" aria-hidden="true" />
-            </a>
-          </div>
-          <p className="line-clamp-2 break-all text-[12.5px] leading-snug text-zinc-200/90">
-            {node.title || node.url}
-          </p>
-        </div>
-      )}
-
-      {node.type === 'image' && (
-        <div className="relative z-10 px-5 pb-6 pt-1.5">
-          <div
-            style={{ borderRadius: '38% 62% 48% 52% / 44% 42% 58% 56%' }}
-            className="overflow-hidden border border-white/15 bg-black/35"
-          >
-            <img
-              src={node.dataUrl}
-              alt={node.fileName || 'Pasted image'}
-              draggable={false}
-              className="pointer-events-none block h-auto w-full select-none object-contain"
             />
           </div>
-          {/* Bottom-right resize handle */}
-          <button
-            type="button"
-            aria-label="Resize image frame"
-            title="Drag to resize"
-            onPointerDown={handleResizeDown}
-            onPointerMove={handleResizeMove}
-            onPointerUp={handleResizeUp}
-            onLostPointerCapture={handleResizeUp}
-            className="absolute bottom-6 right-6 flex h-6 w-6 cursor-nwse-resize items-center justify-center rounded-full border border-white/25 bg-[#141821]/85 text-zinc-200 opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100"
-          >
-            <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden="true">
-              <path
-                d="M 10 4 L 4 10 M 10 8 L 8 10"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
+        )}
+
+        {node.type === 'color' && (
+          <div className="relative z-10 px-6 pb-6 pt-2">
+            <button
+              type="button"
+              onClick={() => triggerCopy(node.hex)}
+              title="Click to copy hex color"
+              style={
+                {
+                  backgroundColor: node.hex,
+                  '--swatch-bg': node.hex,
+                  '--swatch-fallback-fg': getContrastFallbackColor(node.hex),
+                  borderRadius: '34% 28% 36% 26% / 30% 34% 28% 32%',
+                } as React.CSSProperties
+              }
+              className="swatch-contrast-text flex h-24 w-full flex-col items-center justify-center gap-1 border border-white/25 p-3 text-center shadow-[inset_0_3px_8px_rgba(255,255,255,0.45),inset_0_-6px_14px_rgba(0,0,0,0.2)] transition-transform active:scale-[0.97]"
+            >
+              <span className="font-mono-code text-base font-semibold tracking-tight">
+                {node.hex}
+              </span>
+              <span className="rounded-full bg-black/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-md">
+                {copied ? 'Copied' : 'Tap to copy'}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {node.type === 'link' && (
+          <div className="relative z-10 flex flex-col gap-2 px-7 pb-6 pt-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex min-w-0 items-center gap-1.5 truncate rounded-full border border-sky-400/25 bg-sky-400/15 px-2.5 py-0.5 text-[11px] font-medium text-sky-200">
+                <Globe className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <span className="truncate">{node.domain}</span>
+              </span>
+              <a
+                href={node.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Open ${node.domain} in new tab`}
+                title="Open link"
+                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-white/20 bg-white/[0.1] px-2.5 text-[11px] font-medium text-zinc-100 transition-colors hover:border-sky-400/45 hover:bg-sky-400/20 hover:text-sky-100"
+              >
+                Open
+                <ExternalLink className="h-3 w-3" aria-hidden="true" />
+              </a>
+            </div>
+            <p className="line-clamp-2 break-words text-[12.5px] leading-snug text-zinc-200/90">
+              {node.title || node.url}
+            </p>
+          </div>
+        )}
+
+        {node.type === 'image' && (
+          <div className="relative z-10 px-6 pb-6 pt-1.5">
+            <div className="overflow-hidden rounded-2xl border border-white/15 bg-black/35">
+              <img
+                src={node.dataUrl}
+                alt={node.fileName || 'Pasted image'}
+                draggable={false}
+                className="pointer-events-none block h-auto w-full select-none object-contain"
               />
-            </svg>
-          </button>
-        </div>
-      )}
+            </div>
+            {/* Bottom-right resize handle */}
+            <button
+              type="button"
+              aria-label="Resize image frame"
+              title="Drag to resize"
+              onPointerDown={handleResizeDown}
+              onPointerMove={handleResizeMove}
+              onPointerUp={handleResizeUp}
+              onLostPointerCapture={handleResizeUp}
+              className="absolute bottom-7 right-7 flex h-6 w-6 cursor-nwse-resize items-center justify-center rounded-full border border-white/25 bg-[#141821]/85 text-zinc-200 opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100"
+            >
+              <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden="true">
+                <path
+                  d="M 10 4 L 4 10 M 10 8 L 8 10"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
