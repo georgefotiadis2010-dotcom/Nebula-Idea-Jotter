@@ -24,8 +24,12 @@ import {
   clampZoom,
   getClosestPorts,
   getNodeDimensions,
+  getNodesBoundingDistance,
   screenToWorld,
 } from './utils/geometry';
+
+const DOCK_THRESHOLD = 190;
+const DETACH_THRESHOLD = 520;
 import { getSoundMuted, playPop, playSnap, playSnip, setSoundMuted } from './utils/sound';
 import {
   createStarterBoard,
@@ -75,6 +79,8 @@ export function App() {
   // Interactions
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [magneticPreview, setMagneticPreview] = useState<MagneticPreview | null>(null);
+  const [detachEdgeIds, setDetachEdgeIds] = useState<Set<string>>(() => new Set());
+  const [justDockedEdgeId, setJustDockedEdgeId] = useState<string | null>(null);
   const [wireDraft, setWireDraft] = useState<WireDraft | null>(null);
   const [spacePressed, setSpacePressed] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
@@ -94,6 +100,8 @@ export function App() {
   const viewportRef = useRef(viewport);
   const measuredSizesRef = useRef(measuredSizes);
   const magneticPreviewRef = useRef(magneticPreview);
+  const detachEdgeIdsRef = useRef(detachEdgeIds);
+  const dockRippleTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -101,7 +109,14 @@ export function App() {
     viewportRef.current = viewport;
     measuredSizesRef.current = measuredSizes;
     magneticPreviewRef.current = magneticPreview;
-  }, [nodes, edges, viewport, measuredSizes, magneticPreview]);
+    detachEdgeIdsRef.current = detachEdgeIds;
+  }, [nodes, edges, viewport, measuredSizes, magneticPreview, detachEdgeIds]);
+
+  const triggerDockRipple = useCallback((edgeId: string) => {
+    setJustDockedEdgeId(edgeId);
+    if (dockRippleTimerRef.current) window.clearTimeout(dockRippleTimerRef.current);
+    dockRippleTimerRef.current = window.setTimeout(() => setJustDockedEdgeId(null), 720);
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -367,6 +382,15 @@ export function App() {
     );
   }, []);
 
+  const handleDetachNode = useCallback(
+    (nodeId: string) => {
+      setEdges((prev) => prev.filter((e) => e.sourceId !== nodeId && e.targetId !== nodeId));
+      playSnip();
+      showToast('Detached from cluster');
+    },
+    [showToast]
+  );
+
   const hasEdgeBetween = useCallback((aId: string, bId: string) => {
     return edgesRef.current.some(
       (e) =>
@@ -392,26 +416,99 @@ export function App() {
     setDraggingNodeId(nodeId);
   }, []);
 
-  const handleMoveNodeDrag = useCallback((clientX: number, clientY: number) => {
-    const drag = dragOffsetRef.current;
-    const el = canvasRef.current;
-    if (!drag || !el) return;
+  const handleMoveNodeDrag = useCallback(
+    (clientX: number, clientY: number) => {
+      const drag = dragOffsetRef.current;
+      const el = canvasRef.current;
+      if (!drag || !el) return;
 
-    const rect = el.getBoundingClientRect();
-    const worldPt = screenToWorld(clientX - rect.left, clientY - rect.top, viewportRef.current);
-    const nextX = Math.round(worldPt.x - drag.offsetX);
-    const nextY = Math.round(worldPt.y - drag.offsetY);
+      const rect = el.getBoundingClientRect();
+      const worldPt = screenToWorld(clientX - rect.left, clientY - rect.top, viewportRef.current);
+      const nextX = Math.round(worldPt.x - drag.offsetX);
+      const nextY = Math.round(worldPt.y - drag.offsetY);
 
-    setNodes((prev) =>
-      prev.map((n) => (n.id === drag.nodeId ? { ...n, x: nextX, y: nextY } : n))
-    );
-  }, []);
+      let draggedNode: VaultNode | null = null;
+      const updatedNodes = nodesRef.current.map((n) => {
+        if (n.id === drag.nodeId) {
+          draggedNode = { ...n, x: nextX, y: nextY };
+          return draggedNode;
+        }
+        return n;
+      });
+      setNodes(updatedNodes);
+
+      if (draggedNode) {
+        // 1. Magnetic Dock preview: find closest unconnected card within DOCK_THRESHOLD
+        let bestTargetId: string | null = null;
+        let bestDist = Infinity;
+        for (const other of updatedNodes) {
+          if (other.id === drag.nodeId) continue;
+          if (hasEdgeBetween(drag.nodeId, other.id)) continue;
+          const dist = getNodesBoundingDistance(draggedNode, other, measuredSizesRef.current);
+          if (dist <= DOCK_THRESHOLD && dist < bestDist) {
+            bestDist = dist;
+            bestTargetId = other.id;
+          }
+        }
+        setMagneticPreview(
+          bestTargetId ? { sourceId: drag.nodeId, targetId: bestTargetId } : null
+        );
+
+        // 2. Pull-to-Detach preview: any existing edge stretched past DETACH_THRESHOLD
+        const toDetach = new Set<string>();
+        for (const e of edgesRef.current) {
+          if (e.sourceId !== drag.nodeId && e.targetId !== drag.nodeId) continue;
+          const otherId = e.sourceId === drag.nodeId ? e.targetId : e.sourceId;
+          const other = updatedNodes.find((n) => n.id === otherId);
+          if (!other) continue;
+          const dist = getNodesBoundingDistance(draggedNode, other, measuredSizesRef.current);
+          if (dist > DETACH_THRESHOLD) {
+            toDetach.add(e.id);
+          }
+        }
+        setDetachEdgeIds(toDetach);
+      }
+    },
+    [hasEdgeBetween]
+  );
 
   const handleEndNodeDrag = useCallback(() => {
+    const detachIds = detachEdgeIdsRef.current;
+    if (detachIds.size > 0) {
+      setEdges((prev) => prev.filter((e) => !detachIds.has(e.id)));
+      playSnip();
+      showToast('Detached from cluster');
+    }
+
+    const preview = magneticPreviewRef.current;
+    if (preview) {
+      const source = nodesRef.current.find((n) => n.id === preview.sourceId);
+      const target = nodesRef.current.find((n) => n.id === preview.targetId);
+      if (source && target && !hasEdgeBetween(source.id, target.id)) {
+        const { sourcePort, targetPort } = getClosestPorts(
+          source,
+          target,
+          measuredSizesRef.current
+        );
+        const newEdge: VaultEdge = {
+          id: makeId('edge'),
+          sourceId: source.id,
+          targetId: target.id,
+          sourcePort,
+          targetPort,
+          createdAt: Date.now(),
+        };
+        setEdges((prev) => [...prev, newEdge]);
+        triggerDockRipple(newEdge.id);
+        playSnap();
+      }
+    }
+
     dragOffsetRef.current = null;
     setDraggingNodeId(null);
     setMagneticPreview(null);
-  }, []);
+    setDetachEdgeIds(new Set());
+  }, [hasEdgeBetween, showToast, triggerDockRipple]);
 
   // Manual Corner-Port Wiring
   const handleStartWire = useCallback(
@@ -467,6 +564,7 @@ export function App() {
               createdAt: Date.now(),
             };
             setEdges((prev) => [...prev, newEdge]);
+            triggerDockRipple(newEdge.id);
             playSnap();
           }
         }
@@ -477,7 +575,7 @@ export function App() {
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
     },
-    [hasEdgeBetween]
+    [hasEdgeBetween, triggerDockRipple]
   );
 
   // Canvas Panning (empty-canvas drag, Space+Drag, or middle-mouse drag)
@@ -974,6 +1072,15 @@ export function App() {
     [nodes, hiddenByCollapseIds]
   );
 
+  const connectedNodeIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of edges) {
+      set.add(e.sourceId);
+      set.add(e.targetId);
+    }
+    return set;
+  }, [edges]);
+
   // Orbit: arrange all connected ideas into a radial constellation around a Big Idea Title
   const handleOrbitCluster = useCallback(
     (titleId: string) => {
@@ -1168,6 +1275,8 @@ export function App() {
               edges={edges}
               measuredSizes={measuredSizes}
               magneticPreview={magneticPreview}
+              detachEdgeIds={detachEdgeIds}
+              justDockedEdgeId={justDockedEdgeId}
               wireDraft={wireDraft}
               dimmedNodeIds={dimmedIds}
               focusedClusterNodeIds={focusedClusterNodeIds}
@@ -1193,12 +1302,14 @@ export function App() {
                   }
                   isWireTarget={wireDraft?.hoverTargetId === node.id}
                   isWiringActive={wireDraft !== null}
+                  isConnected={connectedNodeIds.has(node.id)}
                   autoFocus={autoFocusNodeId === node.id}
                   clusterDots={node.type === 'title' ? clusterDotsByTitle[node.id] : undefined}
                   onAutoFocusHandled={() => setAutoFocusNodeId(null)}
                   onHoverNode={handleHoverNode}
                   onOrbitCluster={handleOrbitCluster}
                   onToggleCollapseCluster={handleToggleCollapseCluster}
+                  onDetachNode={handleDetachNode}
                   onStartDrag={handleStartNodeDrag}
                   onMoveDrag={handleMoveNodeDrag}
                   onEndDrag={handleEndNodeDrag}

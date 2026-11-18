@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { NodeSize, PortCorner, VaultEdge, VaultNode } from '../types/vault';
 import {
   buildBezierPath,
   buildTaperedRibbonPath,
   getClosestPorts,
+  getNodeDimensions,
   getPortPosition,
 } from '../utils/geometry';
 
@@ -24,6 +25,8 @@ interface TetherLayerProps {
   edges: VaultEdge[];
   measuredSizes: Record<string, NodeSize>;
   magneticPreview: MagneticPreview | null;
+  detachEdgeIds: Set<string>;
+  justDockedEdgeId: string | null;
   wireDraft: WireDraft | null;
   dimmedNodeIds: Set<string>;
   focusedClusterNodeIds: Set<string> | null;
@@ -51,6 +54,8 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
   edges,
   measuredSizes,
   magneticPreview,
+  detachEdgeIds,
+  justDockedEdgeId,
   wireDraft,
   dimmedNodeIds,
   focusedClusterNodeIds,
@@ -61,10 +66,51 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
   const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
   const [draftLabel, setDraftLabel] = useState('');
 
-  const nodeMap = new Map<string, VaultNode>();
-  for (const n of nodes) {
-    nodeMap.set(n.id, n);
-  }
+  const nodeMap = useMemo(() => {
+    const m = new Map<string, VaultNode>();
+    for (const n of nodes) m.set(n.id, n);
+    return m;
+  }, [nodes]);
+
+  // Compute connected components for Shared Cluster Halos
+  const clusters = useMemo(() => {
+    const adj = new Map<string, string[]>();
+    for (const n of nodes) adj.set(n.id, []);
+    for (const e of edges) {
+      if (!nodeMap.has(e.sourceId) || !nodeMap.has(e.targetId)) continue;
+      adj.get(e.sourceId)?.push(e.targetId);
+      adj.get(e.targetId)?.push(e.sourceId);
+    }
+
+    const visited = new Set<string>();
+    const result: { nodes: VaultNode[]; color: string }[] = [];
+
+    for (const n of nodes) {
+      if (visited.has(n.id)) continue;
+      const comp: VaultNode[] = [];
+      const queue = [n.id];
+      visited.add(n.id);
+
+      while (queue.length > 0) {
+        const currId = queue.shift()!;
+        const curr = nodeMap.get(currId);
+        if (curr) comp.push(curr);
+        for (const nb of adj.get(currId) ?? []) {
+          if (!visited.has(nb)) {
+            visited.add(nb);
+            queue.push(nb);
+          }
+        }
+      }
+
+      if (comp.length >= 2) {
+        const titleNode = comp.find((c) => c.type === 'title');
+        const color = titleNode ? '#F472B6' : getNodeAccentColor(comp[0]);
+        result.push({ nodes: comp, color });
+      }
+    }
+    return result;
+  }, [nodes, edges, nodeMap]);
 
   return (
     <svg
@@ -78,6 +124,10 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
+        </filter>
+
+        <filter id="cluster-halo-blur" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="38" />
         </filter>
 
         {edges.map((edge) => {
@@ -104,6 +154,35 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
         })}
       </defs>
 
+      {/* Shared Fluid Cluster Halos behind connected card groups */}
+      <g filter="url(#cluster-halo-blur)" className="cluster-halo">
+        {clusters.map((cluster, idx) => {
+          const anyHighlighted =
+            focusedClusterNodeIds === null ||
+            cluster.nodes.some((n) => focusedClusterNodeIds.has(n.id));
+          return (
+            <g key={idx} style={{ opacity: anyHighlighted ? 1 : 0.15, transition: 'opacity 240ms ease' }}>
+              {cluster.nodes.map((n) => {
+                const size = getNodeDimensions(n, measuredSizes);
+                const pad = 42;
+                return (
+                  <rect
+                    key={n.id}
+                    x={n.x - pad}
+                    y={n.y - pad}
+                    width={size.width + pad * 2}
+                    height={size.height + pad * 2}
+                    rx={68}
+                    fill={cluster.color}
+                    fillOpacity={0.11}
+                  />
+                );
+              })}
+            </g>
+          );
+        })}
+      </g>
+
       {/* Existing Tapered Ribbons, Elastic Curves & Labeled Pills */}
       {edges.map((edge) => {
         const source = nodeMap.get(edge.sourceId);
@@ -118,6 +197,8 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
         const p2 = getPortPosition(target, tPort, measuredSizes);
         const { d, midX, midY, c1, c2 } = buildBezierPath(p1, p2, sPort, tPort);
 
+        const isDetaching = detachEdgeIds.has(edge.id);
+        const isHovered = hoveredEdgeId === edge.id || editingEdgeId === edge.id || isDetaching;
         const isTitleEdge = source.type === 'title' || target.type === 'title';
         const startHalfW = source.type === 'title' ? 7 : isTitleEdge ? 2 : 3;
         const endHalfW = target.type === 'title' ? 7 : isTitleEdge ? 2 : 3;
@@ -125,7 +206,6 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
           ? buildTaperedRibbonPath(p1, p2, c1, c2, startHalfW, endHalfW)
           : null;
 
-        const isHovered = hoveredEdgeId === edge.id || editingEdgeId === edge.id;
         const isInCluster =
           focusedClusterNodeIds === null ||
           (focusedClusterNodeIds.has(edge.sourceId) && focusedClusterNodeIds.has(edge.targetId));
@@ -134,6 +214,7 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
 
         const c1Color = getNodeAccentColor(source);
         const c2Color = getNodeAccentColor(target);
+        const isJustDocked = justDockedEdgeId === edge.id;
 
         return (
           <g
@@ -155,8 +236,8 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
             <path
               d={d}
               fill="none"
-              stroke={isHovered ? 'rgba(244, 63, 94, 0.3)' : `url(#tether-grad-${edge.id})`}
-              strokeOpacity={isHovered ? 1 : 0.22}
+              stroke={isHovered ? 'rgba(244, 63, 94, 0.35)' : `url(#tether-grad-${edge.id})`}
+              strokeOpacity={isHovered ? 1 : 0.24}
               strokeWidth={isHovered ? 8 : 6}
               strokeLinecap="round"
             />
@@ -168,7 +249,7 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
               stroke={isHovered ? '#F43F5E' : `url(#tether-grad-${edge.id})`}
               strokeWidth={isHovered ? 2.5 : 2}
               strokeLinecap="round"
-              strokeDasharray={isHovered ? '5 4' : undefined}
+              strokeDasharray={isHovered ? '6 5' : undefined}
             />
 
             {/* Flowing light pulse along the noodle */}
@@ -177,12 +258,32 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
                 d={d}
                 fill="none"
                 stroke="#FFFFFF"
-                strokeOpacity={focusedClusterNodeIds ? 0.78 : 0.5}
+                strokeOpacity={focusedClusterNodeIds ? 0.8 : 0.52}
                 strokeWidth={1.75}
                 strokeLinecap="round"
                 strokeDasharray="3 18"
                 className="tether-magnetic-preview"
               />
+            )}
+
+            {/* Fluid Dock Ripple-Bloom animation on new link */}
+            {isJustDocked && (
+              <g transform={`translate(${midX}, ${midY})`}>
+                <circle
+                  r={18}
+                  fill="none"
+                  stroke="#38BDF8"
+                  strokeWidth={2.5}
+                  className="dock-ripple-ring"
+                />
+                <circle
+                  r={12}
+                  fill="none"
+                  stroke="#F472B6"
+                  strokeWidth={2}
+                  className="dock-ripple-ring"
+                />
+              </g>
             )}
 
             {/* Glowing socket rings at endpoints */}
@@ -204,8 +305,19 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
               }}
             />
 
+            {/* Pull-to-detach badge */}
+            {isDetaching && (
+              <foreignObject x={midX - 55} y={midY - 14} width={110} height={28}>
+                <div className="flex h-full items-center justify-center">
+                  <span className="rounded-full border border-rose-400/50 bg-[#181218]/95 px-2.5 py-0.5 text-[10px] font-semibold text-rose-300 shadow-lg">
+                    Release to detach
+                  </span>
+                </div>
+              </foreignObject>
+            )}
+
             {/* Midpoint Relationship Pill (shows existing label, or hover controls to label / snip) */}
-            {(edge.label || isHovered) && (
+            {!isDetaching && (edge.label || hoveredEdgeId === edge.id || editingEdgeId === edge.id) && (
               <foreignObject
                 x={midX - 90}
                 y={midY - 16}
@@ -258,7 +370,7 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
                       >
                         {edge.label || '+ label'}
                       </button>
-                      {isHovered && (
+                      {hoveredEdgeId === edge.id && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -281,24 +393,51 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
         );
       })}
 
-      {/* Magnetic Proximity Preview (unused when auto-connect is off, kept for compatibility) */}
+      {/* Magnetic Dock Fluid Aura Preview */}
       {magneticPreview && (() => {
         const source = nodeMap.get(magneticPreview.sourceId);
         const target = nodeMap.get(magneticPreview.targetId);
         if (!source || !target) return null;
+
         const { sourcePort, targetPort } = getClosestPorts(source, target, measuredSizes);
         const p1 = getPortPosition(source, sourcePort, measuredSizes);
         const p2 = getPortPosition(target, targetPort, measuredSizes);
-        const { d } = buildBezierPath(p1, p2, sourcePort, targetPort);
+        const { d, midX, midY, c1, c2 } = buildBezierPath(p1, p2, sourcePort, targetPort);
+        const ribbonD = buildTaperedRibbonPath(p1, p2, c1, c2, 8, 8);
+        const targetSize = getNodeDimensions(target, measuredSizes);
+
         return (
-          <path
-            d={d}
-            fill="none"
-            stroke="#38BDF8"
-            strokeWidth={2.25}
-            strokeDasharray="6 6"
-            className="tether-magnetic-preview"
-          />
+          <g filter="url(#tether-glow)">
+            {/* Fluid target dock halo */}
+            <rect
+              x={target.x - 14}
+              y={target.y - 14}
+              width={targetSize.width + 28}
+              height={targetSize.height + 28}
+              rx={26}
+              fill="rgba(56, 189, 248, 0.08)"
+              stroke="#38BDF8"
+              strokeWidth={1.5}
+              strokeDasharray="6 4"
+            />
+            <path d={ribbonD} fill="rgba(56, 189, 248, 0.16)" />
+            <path
+              d={d}
+              fill="none"
+              stroke="#38BDF8"
+              strokeWidth={2.5}
+              strokeDasharray="6 6"
+              strokeLinecap="round"
+              className="tether-magnetic-preview"
+            />
+            <foreignObject x={midX - 50} y={midY - 14} width={100} height={28}>
+              <div className="flex h-full items-center justify-center">
+                <span className="rounded-full border border-sky-400/50 bg-[#121620]/95 px-2.5 py-0.5 text-[10px] font-semibold text-sky-200 shadow-lg">
+                  Drop to dock
+                </span>
+              </div>
+            </foreignObject>
+          </g>
         );
       })()}
 

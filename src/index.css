@@ -160,6 +160,37 @@
   animation: dash-flow 0.6s linear infinite;
 }
 
+@keyframes halo-breathe {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 0.96;
+  }
+}
+
+@keyframes dock-ripple {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.cluster-halo {
+  animation: halo-breathe 5s ease-in-out infinite;
+}
+
+.dock-ripple-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dock-ripple 680ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 /* Custom subtle scrollbars inside text nodes */
 .vault-scroll::-webkit-scrollbar {
   width: 5px;

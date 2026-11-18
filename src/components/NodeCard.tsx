@@ -14,6 +14,7 @@ import {
   StickyNote,
   Trash2,
   UnfoldVertical,
+  Unlink,
 } from 'lucide-react';
 import type { NodeSize, PortCorner, VaultNode } from '../types/vault';
 import { copyTextToClipboard, getContrastFallbackColor } from '../utils/clipboard';
@@ -29,11 +30,13 @@ interface NodeCardProps {
   isWiringActive: boolean;
   gridMode?: boolean;
   autoFocus?: boolean;
+  isConnected?: boolean;
   clusterDots?: string[];
   onAutoFocusHandled?: () => void;
   onHoverNode?: (nodeId: string | null) => void;
   onOrbitCluster?: (titleId: string) => void;
   onToggleCollapseCluster?: (titleId: string) => void;
+  onDetachNode?: (nodeId: string) => void;
   onStartDrag: (nodeId: string, clientX: number, clientY: number) => void;
   onMoveDrag: (clientX: number, clientY: number) => void;
   onEndDrag: () => void;
@@ -69,11 +72,13 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   isWiringActive,
   gridMode = false,
   autoFocus,
+  isConnected = false,
   clusterDots,
   onAutoFocusHandled,
   onHoverNode,
   onOrbitCluster,
   onToggleCollapseCluster,
+  onDetachNode,
   onStartDrag,
   onMoveDrag,
   onEndDrag,
@@ -366,6 +371,18 @@ export const NodeCard: React.FC<NodeCardProps> = ({
               ) : (
                 <Copy className="h-3.5 w-3.5" aria-hidden="true" />
               )}
+            </button>
+          )}
+
+          {!gridMode && isConnected && (
+            <button
+              type="button"
+              aria-label="Detach from cluster"
+              title="Detach from cluster"
+              onClick={() => onDetachNode?.(node.id)}
+              className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-amber-500/15 hover:text-amber-300"
+            >
+              <Unlink className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           )}
 
