@@ -45,6 +45,30 @@
   }
 }
 
+.glass-bubble {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.095) 0%,
+    rgba(28, 33, 43, 0.72) 48%,
+    rgba(16, 19, 26, 0.82) 100%
+  );
+  backdrop-filter: blur(24px) saturate(165%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    0 18px 42px -12px rgba(0, 0, 0, 0.62),
+    0 2px 10px -2px rgba(0, 0, 0, 0.35);
+}
+
+.glass-bubble-dragging {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.08),
+    0 28px 64px -12px rgba(0, 0, 0, 0.78),
+    0 0 0 1px rgba(138, 180, 248, 0.28);
+}
+
 /* Dedicated drag handle: suppress text selection & browser touch gestures */
 .node-drag-handle {
   cursor: grab;

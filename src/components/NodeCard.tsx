@@ -184,6 +184,14 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   })();
   const TypeIcon = typeMeta.icon;
 
+  const ambientGlow = (() => {
+    if (node.type === 'color') return `${node.hex}26`;
+    if (node.type === 'link') return 'rgba(138, 180, 248, 0.14)';
+    if (node.type === 'image') return 'rgba(192, 132, 252, 0.14)';
+    if (node.type === 'text' && node.monospace) return 'rgba(110, 231, 183, 0.12)';
+    return 'rgba(138, 180, 248, 0.08)';
+  })();
+
   return (
     <div
       ref={cardRef}
@@ -195,16 +203,23 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         width: `${node.width}px`,
       }}
       className={[
-        'group absolute left-0 top-0 rounded-xl border bg-[#12151B]/95 backdrop-blur-md shadow-[0_12px_36px_rgba(0,0,0,0.48)]',
-        isDragging ? 'node-no-spring z-40 shadow-[0_24px_56px_rgba(0,0,0,0.65)]' : 'node-spring z-10',
+        'glass-bubble group absolute left-0 top-0 rounded-[28px] border',
+        isDragging ? 'node-no-spring glass-bubble-dragging z-40' : 'node-spring z-10',
         isWireTarget
           ? 'border-emerald-400/80 ring-2 ring-emerald-400/35'
           : isMatched
-            ? 'border-sky-400/75 ring-2 ring-sky-400/30 shadow-[0_0_28px_rgba(56,189,248,0.18)]'
-            : 'border-white/[0.08] hover:border-white/[0.16]',
+            ? 'border-sky-400/75 ring-2 ring-sky-400/30 shadow-[0_0_32px_rgba(138,180,248,0.22)]'
+            : 'border-white/[0.12] hover:border-white/[0.24]',
         isDimmed ? 'opacity-25 saturate-50' : 'opacity-100',
       ].join(' ')}
     >
+      {/* Subtle ambient internal glass refraction glow */}
+      <div
+        aria-hidden="true"
+        style={{ background: `radial-gradient(120% 80% at 20% 0%, ${ambientGlow}, transparent 68%)` }}
+        className="pointer-events-none absolute inset-0 rounded-[28px]"
+      />
+
       {/* 4 Corner Connection Ports */}
       {PORT_POSITIONS.map(({ port, className, label }) => (
         <button
@@ -218,13 +233,13 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             onStartWire(node.id, port, e.clientX, e.clientY);
           }}
           className={[
-            'absolute z-30 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/25 bg-[#0B0D10] transition-all duration-150',
-            'hover:scale-125 hover:border-sky-400 hover:bg-sky-400/20',
+            'absolute z-30 flex h-4 w-4 items-center justify-center rounded-full border border-white/30 bg-[#141821]/90 backdrop-blur-md transition-all duration-150',
+            'hover:scale-125 hover:border-sky-400 hover:bg-sky-400/25',
             isWiringActive ? 'opacity-100 scale-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
             className,
           ].join(' ')}
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+          <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
         </button>
       ))}
 
@@ -237,14 +252,14 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         onPointerMove={handlePointerMove}
         onLostPointerCapture={handleLostCapture}
         className={[
-          'node-drag-handle flex items-center justify-between gap-2 border-b border-white/[0.06] px-3 py-2',
+          'node-drag-handle relative z-10 flex items-center justify-between gap-2 px-4 pt-3 pb-1.5',
           isDragging ? 'is-dragging' : '',
         ].join(' ')}
       >
-        <div className="flex min-w-0 items-center gap-1.5">
-          <GripHorizontal className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
-          <TypeIcon className={`h-3.5 w-3.5 shrink-0 ${typeMeta.accent}`} aria-hidden="true" />
-          <span className="truncate text-[11px] font-medium tracking-wide text-zinc-400">
+        <div className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 ring-1 ring-white/[0.06]">
+          <GripHorizontal className="h-3 w-3 shrink-0 text-zinc-400" aria-hidden="true" />
+          <TypeIcon className={`h-3 w-3 shrink-0 ${typeMeta.accent}`} aria-hidden="true" />
+          <span className="truncate text-[11px] font-medium tracking-wide text-zinc-300">
             {node.type === 'text' && node.title
               ? node.title
               : node.type === 'color' && node.label
@@ -264,10 +279,10 @@ export const NodeCard: React.FC<NodeCardProps> = ({
               title={node.monospace ? 'Switch to proportional font' : 'Switch to monospace font'}
               onClick={() => onUpdateNode(node.id, { monospace: !node.monospace })}
               className={[
-                'flex h-6 w-6 items-center justify-center rounded-md text-xs transition-colors',
+                'flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors',
                 node.monospace
-                  ? 'bg-emerald-500/20 text-emerald-300'
-                  : 'text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-200',
+                  ? 'bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-400/30'
+                  : 'text-zinc-400 hover:bg-white/[0.1] hover:text-zinc-100',
               ].join(' ')}
             >
               <Code2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -284,7 +299,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
                 else if (node.type === 'link') triggerCopy(node.url);
                 else if (node.type === 'text') triggerCopy(node.content);
               }}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-white/[0.07] hover:text-zinc-100"
+              className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-white/[0.1] hover:text-zinc-100"
             >
               {copied ? (
                 <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
@@ -299,7 +314,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             aria-label={`Delete ${typeMeta.label.toLowerCase()} node`}
             title="Delete node"
             onClick={() => onDeleteNode(node.id)}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-rose-500/15 hover:text-rose-400"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-rose-500/20 hover:text-rose-300"
           >
             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -313,7 +328,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
       {/* Body by Node Type */}
       {node.type === 'text' && (
-        <div className="p-3">
+        <div className="relative z-10 px-4 pb-3.5 pt-1">
           <textarea
             ref={textareaRef}
             value={node.content}
@@ -323,7 +338,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             onKeyDown={(e) => e.stopPropagation()}
             rows={3}
             className={[
-              'vault-scroll w-full resize-none bg-transparent text-[13px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:outline-none',
+              'vault-scroll w-full resize-none bg-transparent text-[13px] leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none',
               node.monospace ? 'font-mono-code text-[12.5px] text-emerald-100/95' : '',
             ].join(' ')}
           />
@@ -331,7 +346,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
       )}
 
       {node.type === 'color' && (
-        <div className="p-2.5">
+        <div className="relative z-10 px-3 pb-3 pt-1">
           <button
             type="button"
             onClick={() => triggerCopy(node.hex)}
@@ -343,10 +358,10 @@ export const NodeCard: React.FC<NodeCardProps> = ({
                 '--swatch-fallback-fg': getContrastFallbackColor(node.hex),
               } as React.CSSProperties
             }
-            className="swatch-contrast-text flex h-24 w-full flex-col items-start justify-between rounded-lg border border-white/10 p-3 text-left transition-transform active:scale-[0.98]"
+            className="swatch-contrast-text flex h-24 w-full flex-col items-start justify-between rounded-[20px] border border-white/20 p-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform active:scale-[0.98]"
           >
-            <span className="rounded-md bg-black/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-xs">
-              {copied ? 'Copied' : 'Click to copy'}
+            <span className="rounded-full bg-black/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-md">
+              {copied ? 'Copied' : 'Tap to copy'}
             </span>
             <span className="font-mono-code text-base font-semibold tracking-tight">
               {node.hex}
@@ -356,9 +371,9 @@ export const NodeCard: React.FC<NodeCardProps> = ({
       )}
 
       {node.type === 'link' && (
-        <div className="flex flex-col gap-2.5 p-3">
+        <div className="relative z-10 flex flex-col gap-2.5 px-4 pb-4 pt-1">
           <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/25 bg-sky-400/15 px-2.5 py-0.5 text-[11px] font-medium text-sky-200">
               <Globe className="h-3 w-3" aria-hidden="true" />
               {node.domain}
             </span>
@@ -368,21 +383,21 @@ export const NodeCard: React.FC<NodeCardProps> = ({
               rel="noopener noreferrer"
               aria-label={`Open ${node.domain} in new tab`}
               title="Open link"
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.04] px-2 text-[11px] font-medium text-zinc-200 transition-colors hover:border-sky-400/40 hover:bg-sky-500/15 hover:text-sky-200"
+              className="inline-flex h-7 items-center gap-1 rounded-full border border-white/15 bg-white/[0.08] px-2.5 text-[11px] font-medium text-zinc-100 transition-colors hover:border-sky-400/45 hover:bg-sky-400/20 hover:text-sky-100"
             >
               Open
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </a>
           </div>
-          <p className="line-clamp-2 break-all text-[12.5px] leading-snug text-zinc-300">
+          <p className="line-clamp-2 break-all text-[12.5px] leading-snug text-zinc-200/90">
             {node.title || node.url}
           </p>
         </div>
       )}
 
       {node.type === 'image' && (
-        <div className="relative p-2">
-          <div className="overflow-hidden rounded-lg border border-white/[0.06] bg-black/40">
+        <div className="relative z-10 px-2.5 pb-2.5 pt-1">
+          <div className="overflow-hidden rounded-[20px] border border-white/10 bg-black/35">
             <img
               src={node.dataUrl}
               alt={node.fileName || 'Pasted image'}
@@ -399,7 +414,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             onPointerMove={handleResizeMove}
             onPointerUp={handleResizeUp}
             onLostPointerCapture={handleResizeUp}
-            className="absolute bottom-3 right-3 flex h-5 w-5 cursor-nwse-resize items-center justify-center rounded-md border border-white/15 bg-[#0B0D10]/85 text-zinc-300 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+            className="absolute bottom-4 right-4 flex h-6 w-6 cursor-nwse-resize items-center justify-center rounded-full border border-white/20 bg-[#141821]/85 text-zinc-200 opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100"
           >
             <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden="true">
               <path

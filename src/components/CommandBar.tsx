@@ -121,7 +121,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         role="toolbar"
         aria-label="SnippetVault controls"
         {...({ focusgroup: 'toolbar wrap' } as Record<string, string>)}
-        className="pointer-events-auto flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-white/[0.08] bg-[#12151B]/82 px-3 py-2 shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl"
+        className="glass-bubble pointer-events-auto flex max-w-full flex-wrap items-center gap-2 rounded-full border border-white/[0.12] px-4 py-2"
       >
         {/* Brand */}
         <div className="flex items-center gap-2 pr-1">
