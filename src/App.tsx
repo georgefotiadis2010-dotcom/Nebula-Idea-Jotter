@@ -764,6 +764,61 @@ export function App() {
     playPop();
   }, [containerSize.width, containerSize.height, getSpawnWorldPoint, showToast]);
 
+  const handleSurpriseMe = useCallback(() => {
+    const prompts = [
+      'What if this idea worked offline in 10ms?',
+      'Combine two unexpected textures: warm paper + neon telemetry.',
+      'Sketch the 3-word pitch for this board.',
+      'Wildcard constraint: zero menus, gesture-first!',
+      'Pick 1 hero color and build everything around it.',
+    ];
+    const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#C77DFF', '#FF9F1C'];
+    const center = getSpawnWorldPoint({
+      x: containerSize.width / 2 + (Math.random() - 0.5) * 140,
+      y: containerSize.height / 2 + (Math.random() - 0.5) * 100,
+    });
+    const now = Date.now();
+    const spawnColor = Math.random() < 0.4;
+
+    if (spawnColor) {
+      const hex = colors[Math.floor(Math.random() * colors.length)];
+      setNodes((prev) => [
+        ...prev,
+        {
+          id: makeId('clr'),
+          type: 'color',
+          x: Math.round(center.x - 110),
+          y: Math.round(center.y - 70),
+          width: 220,
+          hex,
+          label: 'Spark Swatch',
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      showToast(`Sparked ${hex}`);
+    } else {
+      const text = prompts[Math.floor(Math.random() * prompts.length)];
+      setNodes((prev) => [
+        ...prev,
+        {
+          id: makeId('txt'),
+          type: 'text',
+          x: Math.round(center.x - 145),
+          y: Math.round(center.y - 60),
+          width: 290,
+          content: text,
+          monospace: false,
+          title: 'Spark Prompt',
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      showToast('Sparked a creative prompt');
+    }
+    playPop();
+  }, [containerSize.width, containerSize.height, getSpawnWorldPoint, showToast]);
+
   // Tidy / Auto-arrange nodes into a clean studio grid
   const handleTidyLayout = useCallback(() => {
     if (nodesRef.current.length === 0) return;
@@ -943,6 +998,7 @@ export function App() {
         onAddNote={handleAddNote}
         onAddColor={handleAddColor}
         onAddLink={handleAddLink}
+        onSurpriseMe={handleSurpriseMe}
         onTidyLayout={handleTidyLayout}
       />
 

@@ -45,47 +45,48 @@
   }
 }
 
-/* Google Labs Tabletop Studio Surfaces */
+/* Playful Google Labs Tabletop Surfaces */
 .tabletop-bg {
-  background-color: #101216;
+  background-color: #101218;
   background-image:
-    radial-gradient(ellipse 80% 65% at 50% 45%, rgba(255, 255, 255, 0.035) 0%, transparent 70%),
-    radial-gradient(circle at 50% 50%, rgba(138, 180, 248, 0.025) 0%, transparent 60%);
+    radial-gradient(ellipse 70% 55% at 25% 25%, rgba(138, 180, 248, 0.055) 0%, transparent 65%),
+    radial-gradient(ellipse 65% 55% at 78% 70%, rgba(244, 114, 182, 0.045) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 50% 45%, rgba(253, 214, 99, 0.03) 0%, transparent 70%);
 }
 
 .labs-surface {
-  background-color: rgba(24, 27, 34, 0.86);
-  backdrop-filter: blur(22px) saturate(145%);
-  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  background-color: rgba(24, 27, 36, 0.88);
+  backdrop-filter: blur(22px) saturate(155%);
+  -webkit-backdrop-filter: blur(22px) saturate(155%);
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
-    0 12px 32px rgba(0, 0, 0, 0.45);
+    0 1px 0 0 rgba(255, 255, 255, 0.08) inset,
+    0 14px 34px rgba(0, 0, 0, 0.48);
 }
 
 .tabletop-card {
-  background-color: #181B22;
+  background-color: #191D26;
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.07) inset,
+    0 1px 0 0 rgba(255, 255, 255, 0.08) inset,
     0 10px 26px -6px rgba(0, 0, 0, 0.55),
     0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .tabletop-card:hover {
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
-    0 18px 36px -8px rgba(0, 0, 0, 0.65),
+    0 1px 0 0 rgba(255, 255, 255, 0.14) inset,
+    0 20px 38px -8px rgba(0, 0, 0, 0.65),
     0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .tabletop-card-dragging {
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.14) inset,
-    0 28px 58px -10px rgba(0, 0, 0, 0.78),
-    0 8px 20px rgba(0, 0, 0, 0.45);
+    0 1px 0 0 rgba(255, 255, 255, 0.18) inset,
+    0 30px 60px -10px rgba(0, 0, 0, 0.8),
+    0 0 0 2px rgba(138, 180, 248, 0.35);
 }
 
 .viewport-smooth {
-  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 420ms cubic-bezier(0.34, 1.35, 0.64, 1);
 }
 
 /* Dedicated drag handle: suppress text selection & browser touch gestures */
@@ -100,9 +101,9 @@
   cursor: grabbing;
 }
 
-/* Subtle spring physics on drag release (disabled while actively dragging) */
+/* Bouncy playful spring physics on drag release & hover */
 .node-spring {
-  transition: transform 320ms cubic-bezier(0.22, 1.3, 0.36, 1), opacity 200ms ease, filter 200ms ease, box-shadow 200ms ease;
+  transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms ease, filter 200ms ease, box-shadow 200ms ease;
 }
 
 .node-no-spring {

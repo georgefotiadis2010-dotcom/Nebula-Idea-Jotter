@@ -7,6 +7,7 @@ import {
   Globe,
   Image as ImageIcon,
   Palette,
+  RefreshCw,
   StickyNote,
   Trash2,
 } from 'lucide-react';
@@ -358,26 +359,44 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
       {node.type === 'color' && (
         <div className="p-2.5">
-          <button
-            type="button"
-            onClick={() => triggerCopy(node.hex)}
-            title="Click to copy hex color"
-            style={
-              {
-                backgroundColor: node.hex,
-                '--swatch-bg': node.hex,
-                '--swatch-fallback-fg': getContrastFallbackColor(node.hex),
-              } as React.CSSProperties
-            }
-            className="swatch-contrast-text flex h-24 w-full flex-col items-start justify-between rounded-xl border border-white/10 p-3 text-left transition-transform active:scale-[0.98]"
-          >
-            <span className="rounded-full bg-black/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm">
-              {copied ? 'Copied' : 'Click to copy'}
-            </span>
-            <span className="font-mono-code text-base font-semibold tracking-tight">
-              {node.hex}
-            </span>
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => triggerCopy(node.hex)}
+              title="Click to copy hex color"
+              style={
+                {
+                  backgroundColor: node.hex,
+                  '--swatch-bg': node.hex,
+                  '--swatch-fallback-fg': getContrastFallbackColor(node.hex),
+                } as React.CSSProperties
+              }
+              className="swatch-contrast-text flex h-24 w-full flex-col items-start justify-between rounded-xl border border-white/15 p-3 text-left transition-transform active:scale-[0.97]"
+            >
+              <span className="rounded-full bg-black/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm">
+                {copied ? 'Copied!' : 'Tap to copy'}
+              </span>
+              <span className="font-mono-code text-base font-semibold tracking-tight">
+                {node.hex}
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label="Roll new random color"
+              title="Roll a fun new color"
+              onClick={(e) => {
+                e.stopPropagation();
+                const randHex = `#${Math.floor(Math.random() * 0xffffff)
+                  .toString(16)
+                  .padStart(6, '0')
+                  .toUpperCase()}`;
+                onUpdateNode(node.id, { hex: randHex });
+              }}
+              className="swatch-contrast-text absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/15 backdrop-blur-sm transition-transform hover:rotate-90 hover:bg-black/25 active:scale-90"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       )}
 

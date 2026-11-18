@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Dices,
   LayoutGrid,
   Link2,
   Network,
@@ -14,6 +15,7 @@ interface BottomDockProps {
   onAddNote: () => void;
   onAddColor: () => void;
   onAddLink: () => void;
+  onSurpriseMe: () => void;
   onTidyLayout: () => void;
 }
 
@@ -23,21 +25,22 @@ export const BottomDock: React.FC<BottomDockProps> = ({
   onAddNote,
   onAddColor,
   onAddLink,
+  onSurpriseMe,
   onTidyLayout,
 }) => {
   return (
     <nav
       aria-label="Tabletop actions"
-      className="labs-surface fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/[0.1] px-2 py-1.5"
+      className="labs-surface fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/[0.12] px-2.5 py-1.5"
     >
-      {/* Quick-Create Tabletop Artifacts */}
+      {/* Quick-Create Playful Tabletop Artifacts */}
       <button
         type="button"
         onClick={onAddNote}
         title="Add Note"
-        className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-zinc-200 transition-colors hover:bg-white/[0.08] hover:text-white"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-amber-100 transition-all hover:-translate-y-0.5 hover:bg-amber-400/15 hover:text-amber-200 active:scale-95"
       >
-        <StickyNote className="h-3.5 w-3.5 text-zinc-300" aria-hidden="true" />
+        <StickyNote className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
         <span className="hidden sm:inline">Note</span>
       </button>
 
@@ -45,9 +48,9 @@ export const BottomDock: React.FC<BottomDockProps> = ({
         type="button"
         onClick={onAddColor}
         title="Add Color Chip"
-        className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-zinc-200 transition-colors hover:bg-white/[0.08] hover:text-white"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-pink-100 transition-all hover:-translate-y-0.5 hover:bg-pink-400/15 hover:text-pink-200 active:scale-95"
       >
-        <Palette className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+        <Palette className="h-3.5 w-3.5 text-pink-300" aria-hidden="true" />
         <span className="hidden sm:inline">Swatch</span>
       </button>
 
@@ -55,10 +58,20 @@ export const BottomDock: React.FC<BottomDockProps> = ({
         type="button"
         onClick={onAddLink}
         title="Add Link Clipping"
-        className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-zinc-200 transition-colors hover:bg-white/[0.08] hover:text-white"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-sky-100 transition-all hover:-translate-y-0.5 hover:bg-sky-400/15 hover:text-sky-200 active:scale-95"
       >
         <Link2 className="h-3.5 w-3.5 text-sky-300" aria-hidden="true" />
         <span className="hidden sm:inline">Link</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={onSurpriseMe}
+        title="Drop a random creative prompt or color!"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-violet-500/15 px-3 text-xs font-medium text-violet-200 ring-1 ring-violet-400/25 transition-all hover:-translate-y-0.5 hover:bg-violet-500/25 active:scale-95"
+      >
+        <Dices className="h-3.5 w-3.5 text-violet-300" aria-hidden="true" />
+        <span className="hidden sm:inline">Spark</span>
       </button>
 
       <span className="mx-1 h-4 w-px bg-white/[0.1]" role="separator" />
@@ -70,7 +83,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
         aria-pressed={viewMode === 'canvas'}
         title="Tabletop Canvas"
         className={[
-          'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all',
+          'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all active:scale-95',
           viewMode === 'canvas'
             ? 'bg-sky-500/20 text-sky-200 ring-1 ring-sky-400/35'
             : 'text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-100',
@@ -86,7 +99,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
         aria-pressed={viewMode === 'grid'}
         title="Grid View"
         className={[
-          'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all',
+          'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all active:scale-95',
           viewMode === 'grid'
             ? 'bg-sky-500/20 text-sky-200 ring-1 ring-sky-400/35'
             : 'text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-100',
@@ -103,7 +116,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
             type="button"
             onClick={onTidyLayout}
             title="Tidy Tabletop"
-            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/25 transition-colors hover:bg-emerald-500/25"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-500/25 active:scale-95"
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">Tidy</span>
