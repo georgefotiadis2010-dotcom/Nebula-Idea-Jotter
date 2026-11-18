@@ -41,6 +41,17 @@ const PORT_POSITIONS: { port: PortCorner; className: string; label: string }[] =
   { port: 'br', className: '-bottom-1.5 -right-1.5', label: 'Bottom-right connection port' },
 ];
 
+/** Subtle natural tabletop card tilt (-1.3deg to +1.3deg) */
+function getTabletopTilt(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const normalized = ((h >>> 0) % 27) - 13; // -13..13
+  return normalized * 0.1;
+}
+
 export const NodeCard: React.FC<NodeCardProps> = ({
   node,
   zoom,
@@ -181,10 +192,17 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   })();
   const TypeIcon = typeMeta.icon;
 
+  const [isHovered, setIsHovered] = useState(false);
+  const tilt = gridMode ? 0 : getTabletopTilt(node.id);
+  const activeTilt = isDragging || isHovered ? 0 : tilt;
+  const activeScale = isDragging ? 1.025 : 1;
+
   return (
     <div
       ref={cardRef}
       data-node-id={node.id}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onPointerDown={(e) => {
         if (!gridMode) e.stopPropagation();
       }}
@@ -195,19 +213,19 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         gridMode
           ? undefined
           : {
-              transform: `translate3d(${node.x}px, ${node.y}px, 0)`,
+              transform: `translate3d(${node.x}px, ${node.y}px, 0) rotate(${activeTilt}deg) scale(${activeScale})`,
               width: `${node.width}px`,
             }
       }
       className={[
-        'labs-card group rounded-2xl border',
+        'tabletop-card group rounded-2xl border',
         gridMode ? 'relative w-full' : 'absolute left-0 top-0',
-        isDragging ? 'node-no-spring labs-card-dragging z-40' : 'node-spring z-10',
+        isDragging ? 'node-no-spring tabletop-card-dragging z-40' : 'node-spring z-10',
         isWireTarget
           ? 'border-emerald-400/80 ring-2 ring-emerald-400/30'
           : isMatched
-            ? 'border-sky-400/80 ring-2 ring-sky-400/25 shadow-[0_0_28px_rgba(138,180,248,0.18)]'
-            : 'border-white/[0.08] hover:border-white/[0.18]',
+            ? 'border-sky-400/80 ring-2 ring-sky-400/25 shadow-[0_0_28px_rgba(138,180,248,0.2)]'
+            : 'border-white/[0.09] hover:border-white/[0.22]',
         isDimmed ? 'opacity-25 saturate-50' : 'opacity-100',
       ].join(' ')}
     >

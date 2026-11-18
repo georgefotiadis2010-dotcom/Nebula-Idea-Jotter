@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BottomDock } from './components/BottomDock';
 import { CommandBar } from './components/CommandBar';
-import { LeftDock } from './components/LeftDock';
 import { Minimap } from './components/Minimap';
 import { NodeCard } from './components/NodeCard';
 import { TetherLayer, type MagneticPreview, type WireDraft } from './components/TetherLayer';
@@ -892,7 +892,7 @@ export function App() {
 
   return (
     <div
-      className="relative h-screen w-screen overflow-hidden bg-[#0B0D10]"
+      className="tabletop-bg relative h-screen w-screen overflow-hidden"
       onDragOver={(e) => {
         e.preventDefault();
         setIsFileDragOver(true);
@@ -936,8 +936,8 @@ export function App() {
         counts={counts}
       />
 
-      {/* Floating Left Creation & View Dock */}
-      <LeftDock
+      {/* Floating Bottom-Center Tabletop Dock */}
+      <BottomDock
         viewMode={viewMode}
         onToggleView={setViewMode}
         onAddNote={handleAddNote}

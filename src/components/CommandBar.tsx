@@ -123,13 +123,16 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         {...({ focusgroup: 'toolbar wrap' } as Record<string, string>)}
         className="labs-surface pointer-events-auto flex max-w-full flex-wrap items-center gap-2 rounded-full border border-white/[0.08] px-4 py-2"
       >
-        {/* Brand */}
+        {/* Brand + Google Labs-style Badge */}
         <div className="flex items-center gap-2 pr-1">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-sky-400/25 bg-sky-500/15 text-sky-300">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-sky-400/25 bg-sky-500/15 text-sky-300">
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           </div>
           <span className="hidden text-xs font-semibold tracking-tight text-zinc-100 sm:inline">
             SnippetVault
+          </span>
+          <span className="hidden rounded-full border border-white/[0.1] bg-white/[0.05] px-1.5 py-0.5 font-mono-code text-[9px] font-semibold tracking-wider text-zinc-400 lg:inline-block">
+            TABLETOP
           </span>
         </div>
 
