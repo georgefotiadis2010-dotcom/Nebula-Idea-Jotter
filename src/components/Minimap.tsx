@@ -141,13 +141,15 @@ export const Minimap: React.FC<MinimapProps> = ({
           {nodes.map((n) => {
             const size = getNodeDimensions(n, measuredSizes);
             const fill =
-              n.type === 'color'
-                ? n.hex
-                : n.type === 'link'
-                  ? '#38BDF8'
-                  : n.type === 'image'
-                    ? '#A78BFA'
-                    : '#71717A';
+              n.type === 'title'
+                ? '#F472B6'
+                : n.type === 'color'
+                  ? n.hex
+                  : n.type === 'link'
+                    ? '#38BDF8'
+                    : n.type === 'image'
+                      ? '#A78BFA'
+                      : '#71717A';
 
             return (
               <rect

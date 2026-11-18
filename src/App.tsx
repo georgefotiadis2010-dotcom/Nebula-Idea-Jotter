@@ -21,11 +21,9 @@ import {
   parseUrlPayload,
 } from './utils/clipboard';
 import {
-  MAGNETIC_THRESHOLD,
   clampZoom,
   getClosestPorts,
   getNodeDimensions,
-  getNodesBoundingDistance,
   screenToWorld,
 } from './utils/geometry';
 import { getSoundMuted, playPop, playSnap, playSnip, setSoundMuted } from './utils/sound';
@@ -387,74 +385,26 @@ export function App() {
     setDraggingNodeId(nodeId);
   }, []);
 
-  const handleMoveNodeDrag = useCallback(
-    (clientX: number, clientY: number) => {
-      const drag = dragOffsetRef.current;
-      const el = canvasRef.current;
-      if (!drag || !el) return;
+  const handleMoveNodeDrag = useCallback((clientX: number, clientY: number) => {
+    const drag = dragOffsetRef.current;
+    const el = canvasRef.current;
+    if (!drag || !el) return;
 
-      const rect = el.getBoundingClientRect();
-      const worldPt = screenToWorld(clientX - rect.left, clientY - rect.top, viewportRef.current);
-      const nextX = Math.round(worldPt.x - drag.offsetX);
-      const nextY = Math.round(worldPt.y - drag.offsetY);
+    const rect = el.getBoundingClientRect();
+    const worldPt = screenToWorld(clientX - rect.left, clientY - rect.top, viewportRef.current);
+    const nextX = Math.round(worldPt.x - drag.offsetX);
+    const nextY = Math.round(worldPt.y - drag.offsetY);
 
-      let draggedNode: VaultNode | null = null;
-      const updatedNodes = nodesRef.current.map((n) => {
-        if (n.id === drag.nodeId) {
-          draggedNode = { ...n, x: nextX, y: nextY };
-          return draggedNode;
-        }
-        return n;
-      });
-      setNodes(updatedNodes);
-
-      if (draggedNode) {
-        let bestTargetId: string | null = null;
-        let bestDist = Infinity;
-        for (const other of updatedNodes) {
-          if (other.id === drag.nodeId) continue;
-          if (hasEdgeBetween(drag.nodeId, other.id)) continue;
-          const dist = getNodesBoundingDistance(draggedNode, other, measuredSizesRef.current);
-          if (dist <= MAGNETIC_THRESHOLD && dist < bestDist) {
-            bestDist = dist;
-            bestTargetId = other.id;
-          }
-        }
-        setMagneticPreview(
-          bestTargetId ? { sourceId: drag.nodeId, targetId: bestTargetId } : null
-        );
-      }
-    },
-    [hasEdgeBetween]
-  );
+    setNodes((prev) =>
+      prev.map((n) => (n.id === drag.nodeId ? { ...n, x: nextX, y: nextY } : n))
+    );
+  }, []);
 
   const handleEndNodeDrag = useCallback(() => {
-    const preview = magneticPreviewRef.current;
-    if (preview) {
-      const source = nodesRef.current.find((n) => n.id === preview.sourceId);
-      const target = nodesRef.current.find((n) => n.id === preview.targetId);
-      if (source && target && !hasEdgeBetween(source.id, target.id)) {
-        const { sourcePort, targetPort } = getClosestPorts(
-          source,
-          target,
-          measuredSizesRef.current
-        );
-        const newEdge: VaultEdge = {
-          id: makeId('edge'),
-          sourceId: source.id,
-          targetId: target.id,
-          sourcePort,
-          targetPort,
-          createdAt: Date.now(),
-        };
-        setEdges((prev) => [...prev, newEdge]);
-        playSnap();
-      }
-    }
     dragOffsetRef.current = null;
     setDraggingNodeId(null);
     setMagneticPreview(null);
-  }, [hasEdgeBetween]);
+  }, []);
 
   // Manual Corner-Port Wiring
   const handleStartWire = useCallback(
@@ -685,7 +635,28 @@ export function App() {
     [containerSize.width, containerSize.height, triggerSmoothViewport]
   );
 
-  // Quick-add actions from LeftDock
+  // Quick-add actions from BottomDock
+  const handleAddTitle = useCallback(() => {
+    const center = getSpawnWorldPoint({
+      x: containerSize.width / 2 + (Math.random() - 0.5) * 60,
+      y: containerSize.height / 2 + (Math.random() - 0.5) * 60,
+    });
+    const now = Date.now();
+    const newNode: VaultNode = {
+      id: makeId('ttl'),
+      type: 'title',
+      x: Math.round(center.x - 165),
+      y: Math.round(center.y - 55),
+      width: 330,
+      heading: '',
+      subtitle: '',
+      createdAt: now,
+      updatedAt: now,
+    };
+    setNodes((prev) => [...prev, newNode]);
+    playPop();
+  }, [containerSize.width, containerSize.height, getSpawnWorldPoint]);
+
   const handleAddNote = useCallback(() => {
     const center = getSpawnWorldPoint({
       x: containerSize.width / 2 + (Math.random() - 0.5) * 60,
@@ -875,7 +846,11 @@ export function App() {
       let matchesQuery = true;
 
       if (hasSearch) {
-        if (n.type === 'text') {
+        if (n.type === 'title') {
+          matchesQuery =
+            n.heading.toLowerCase().includes(q) ||
+            (n.subtitle?.toLowerCase().includes(q) ?? false);
+        } else if (n.type === 'text') {
           matchesQuery =
             n.content.toLowerCase().includes(q) ||
             (n.title?.toLowerCase().includes(q) ?? false);
@@ -933,6 +908,7 @@ export function App() {
   const counts = useMemo<Record<FilterType, number>>(() => {
     const c: Record<FilterType, number> = {
       all: nodes.length,
+      title: 0,
       text: 0,
       color: 0,
       link: 0,
@@ -995,6 +971,7 @@ export function App() {
       <BottomDock
         viewMode={viewMode}
         onToggleView={setViewMode}
+        onAddTitle={handleAddTitle}
         onAddNote={handleAddNote}
         onAddColor={handleAddColor}
         onAddLink={handleAddLink}

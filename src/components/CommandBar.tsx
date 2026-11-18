@@ -33,6 +33,7 @@ interface CommandBarProps {
 
 const FILTERS: { id: FilterType; label: string }[] = [
   { id: 'all', label: 'All' },
+  { id: 'title', label: 'Titles' },
   { id: 'text', label: 'Notes' },
   { id: 'color', label: 'Colors' },
   { id: 'link', label: 'Links' },

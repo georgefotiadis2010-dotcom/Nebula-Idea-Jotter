@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Dices,
+  Heading,
   LayoutGrid,
   Link2,
   Network,
@@ -12,6 +13,7 @@ import {
 interface BottomDockProps {
   viewMode: 'canvas' | 'grid';
   onToggleView: (mode: 'canvas' | 'grid') => void;
+  onAddTitle: () => void;
   onAddNote: () => void;
   onAddColor: () => void;
   onAddLink: () => void;
@@ -22,6 +24,7 @@ interface BottomDockProps {
 export const BottomDock: React.FC<BottomDockProps> = ({
   viewMode,
   onToggleView,
+  onAddTitle,
   onAddNote,
   onAddColor,
   onAddLink,
@@ -34,6 +37,16 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       className="labs-surface fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/[0.12] px-2.5 py-1.5"
     >
       {/* Quick-Create Playful Tabletop Artifacts */}
+      <button
+        type="button"
+        onClick={onAddTitle}
+        title="Add Big Idea Title Block"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-rose-500/15 px-3 text-xs font-medium text-rose-100 ring-1 ring-rose-400/25 transition-all hover:-translate-y-0.5 hover:bg-rose-500/25 active:scale-95"
+      >
+        <Heading className="h-3.5 w-3.5 text-rose-300" aria-hidden="true" />
+        <span className="hidden sm:inline">Title</span>
+      </button>
+
       <button
         type="button"
         onClick={onAddNote}

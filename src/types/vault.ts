@@ -1,4 +1,4 @@
-export type NodeType = 'text' | 'color' | 'link' | 'image';
+export type NodeType = 'title' | 'text' | 'color' | 'link' | 'image';
 
 export type FilterType = 'all' | NodeType;
 
@@ -13,6 +13,12 @@ export interface BaseVaultNode {
   height?: number;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface TitleVaultNode extends BaseVaultNode {
+  type: 'title';
+  heading: string;
+  subtitle?: string;
 }
 
 export interface TextVaultNode extends BaseVaultNode {
@@ -43,7 +49,7 @@ export interface ImageVaultNode extends BaseVaultNode {
   naturalHeight?: number;
 }
 
-export type VaultNode = TextVaultNode | ColorVaultNode | LinkVaultNode | ImageVaultNode;
+export type VaultNode = TitleVaultNode | TextVaultNode | ColorVaultNode | LinkVaultNode | ImageVaultNode;
 
 export interface VaultEdge {
   id: string;

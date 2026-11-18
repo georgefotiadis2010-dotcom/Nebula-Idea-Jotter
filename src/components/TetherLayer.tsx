@@ -26,6 +26,8 @@ interface TetherLayerProps {
 
 function getNodeAccentColor(node: VaultNode): string {
   switch (node.type) {
+    case 'title':
+      return '#F472B6';
     case 'color':
       return node.hex;
     case 'link':

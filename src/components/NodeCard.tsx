@@ -5,6 +5,7 @@ import {
   Copy,
   ExternalLink,
   Globe,
+  Heading,
   Image as ImageIcon,
   Palette,
   RefreshCw,
@@ -174,6 +175,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
   const typeMeta = (() => {
     switch (node.type) {
+      case 'title':
+        return { icon: Heading, label: 'Big Idea', accent: 'text-rose-300', dot: 'bg-rose-400/90' };
       case 'color':
         return { icon: Palette, label: 'Color', accent: 'text-amber-300', dot: 'bg-amber-400/80' };
       case 'link':
@@ -305,7 +308,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({
               aria-label={`Copy ${typeMeta.label.toLowerCase()}`}
               title="Copy to clipboard"
               onClick={() => {
-                if (node.type === 'color') triggerCopy(node.hex);
+                if (node.type === 'title') triggerCopy(node.heading);
+                else if (node.type === 'color') triggerCopy(node.hex);
                 else if (node.type === 'link') triggerCopy(node.url);
                 else if (node.type === 'text') triggerCopy(node.content);
               }}
@@ -337,6 +341,27 @@ export const NodeCard: React.FC<NodeCardProps> = ({
       </span>
 
       {/* Body by Node Type */}
+      {node.type === 'title' && (
+        <div className="px-3.5 pb-3.5 pt-1">
+          <input
+            type="text"
+            value={node.heading}
+            placeholder="Big Idea Title..."
+            onChange={(e) => onUpdateNode(node.id, { heading: e.target.value })}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="w-full bg-transparent text-lg font-bold tracking-tight text-white placeholder:text-zinc-500 focus:outline-none"
+          />
+          <input
+            type="text"
+            value={node.subtitle ?? ''}
+            placeholder="Add a short tagline or theme..."
+            onChange={(e) => onUpdateNode(node.id, { subtitle: e.target.value })}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="mt-1 w-full bg-transparent text-xs text-zinc-400 placeholder:text-zinc-600 focus:outline-none"
+          />
+        </div>
+      )}
+
       {node.type === 'text' && (
         <div className="p-3.5">
           <textarea
