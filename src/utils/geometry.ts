@@ -122,12 +122,16 @@ function portDirection(port?: PortCorner): { dx: number; dy: number } {
 
 export function buildBezierPath(
   p1: { x: number; y: number },
-  p2: { x: number; y: number },
+  p2: { x: { x: number; y: number }['x']; y: number },
   port1?: PortCorner,
   port2?: PortCorner
-): { d: string; midX: number; midY: number } {
+): { d: string; midX: number; midY: number; c1: { x: number; y: number }; c2: { x: number; y: number } } {
   const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
   const tension = Math.min(140, Math.max(44, dist * 0.38));
+
+  // Tactile elastic sag: sags slightly when close, stretches taut when pulled apart
+  const slack = Math.max(0, 1 - dist / 420);
+  const sag = slack * 34;
 
   let c1x: number;
   let c1y: number;
@@ -137,21 +141,21 @@ export function buildBezierPath(
   if (port1) {
     const dir1 = portDirection(port1);
     c1x = p1.x + dir1.dx * tension;
-    c1y = p1.y + dir1.dy * tension * 0.5;
+    c1y = p1.y + dir1.dy * tension * 0.45 + sag;
   } else {
     const dx = p2.x - p1.x;
     c1x = p1.x + dx * 0.4;
-    c1y = p1.y;
+    c1y = p1.y + sag;
   }
 
   if (port2) {
     const dir2 = portDirection(port2);
     c2x = p2.x + dir2.dx * tension;
-    c2y = p2.y + dir2.dy * tension * 0.5;
+    c2y = p2.y + dir2.dy * tension * 0.45 + sag;
   } else {
     const dx = p2.x - p1.x;
     c2x = p2.x - dx * 0.4;
-    c2y = p2.y;
+    c2y = p2.y + sag;
   }
 
   const d = `M ${p1.x} ${p1.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
@@ -160,5 +164,60 @@ export function buildBezierPath(
   const midX = 0.125 * p1.x + 0.375 * c1x + 0.375 * c2x + 0.125 * p2.x;
   const midY = 0.125 * p1.y + 0.375 * c1y + 0.375 * c2y + 0.125 * p2.y;
 
-  return { d, midX, midY };
+  return { d, midX, midY, c1: { x: c1x, y: c1y }, c2: { x: c2x, y: c2y } };
+}
+
+/** Tapered SVG ribbon polygon around a cubic Bezier (wider at Big Idea hubs, tapering to child nodes) */
+export function buildTaperedRibbonPath(
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  c1: { x: number; y: number },
+  c2: { x: number; y: number },
+  startHalfW: number,
+  endHalfW: number
+): string {
+  const steps = 14;
+  const leftPts: { x: number; y: number }[] = [];
+  const rightPts: { x: number; y: number }[] = [];
+
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const mt = 1 - t;
+    const x =
+      mt * mt * mt * p1.x +
+      3 * mt * mt * t * c1.x +
+      3 * mt * t * t * c2.x +
+      t * t * t * p2.x;
+    const y =
+      mt * mt * mt * p1.y +
+      3 * mt * mt * t * c1.y +
+      3 * mt * t * t * c2.y +
+      t * t * t * p2.y;
+
+    // Derivative for perpendicular normal
+    const dx =
+      3 * mt * mt * (c1.x - p1.x) +
+      6 * mt * t * (c2.x - c1.x) +
+      3 * t * t * (p2.x - c2.x);
+    const dy =
+      3 * mt * mt * (c1.y - p1.y) +
+      6 * mt * t * (c2.y - c1.y) +
+      3 * t * t * (p2.y - c2.y);
+
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const hw = startHalfW + (endHalfW - startHalfW) * t;
+
+    leftPts.push({ x: x + nx * hw, y: y + ny * hw });
+    rightPts.push({ x: x - nx * hw, y: y - ny * hw });
+  }
+
+  const forward = leftPts.map((pt, idx) => `${idx === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ');
+  const backward = [...rightPts]
+    .reverse()
+    .map((pt) => `L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`)
+    .join(' ');
+
+  return `${forward} ${backward} Z`;
 }

@@ -70,6 +70,7 @@ export function App() {
   // View mode & smooth viewport easing
   const [viewMode, setViewMode] = useState<'canvas' | 'grid'>('canvas');
   const [isSmoothViewport, setIsSmoothViewport] = useState(false);
+  const [hoveredTitleId, setHoveredTitleId] = useState<string | null>(null);
 
   // Interactions
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
@@ -358,6 +359,12 @@ export function App() {
   const handleSeverEdge = useCallback((edgeId: string) => {
     setEdges((prev) => prev.filter((e) => e.id !== edgeId));
     playSnip();
+  }, []);
+
+  const handleUpdateEdgeLabel = useCallback((edgeId: string, label: string) => {
+    setEdges((prev) =>
+      prev.map((e) => (e.id === edgeId ? { ...e, label: label || undefined } : e))
+    );
   }, []);
 
   const hasEdgeBetween = useCallback((aId: string, bId: string) => {
@@ -904,6 +911,26 @@ export function App() {
     panToWorld(target.x + size.width / 2, target.y + size.height / 2);
   };
 
+  // Constellation cluster highlighting when hovering a Big Idea Title node
+  const focusedClusterNodeIds = useMemo<Set<string> | null>(() => {
+    if (!hoveredTitleId || draggingNodeId || wireDraft) return null;
+    const cluster = new Set<string>([hoveredTitleId]);
+    for (const e of edges) {
+      if (e.sourceId === hoveredTitleId) cluster.add(e.targetId);
+      if (e.targetId === hoveredTitleId) cluster.add(e.sourceId);
+    }
+    return cluster.size > 1 ? cluster : null;
+  }, [hoveredTitleId, edges, draggingNodeId, wireDraft]);
+
+  const handleHoverNode = useCallback((nodeId: string | null) => {
+    if (!nodeId) {
+      setHoveredTitleId(null);
+      return;
+    }
+    const target = nodesRef.current.find((n) => n.id === nodeId);
+    setHoveredTitleId(target?.type === 'title' ? nodeId : null);
+  }, []);
+
   // Node counts by type
   const counts = useMemo<Record<FilterType, number>>(() => {
     const c: Record<FilterType, number> = {
@@ -1043,7 +1070,9 @@ export function App() {
               magneticPreview={magneticPreview}
               wireDraft={wireDraft}
               dimmedNodeIds={dimmedIds}
+              focusedClusterNodeIds={focusedClusterNodeIds}
               onSeverEdge={handleSeverEdge}
+              onUpdateEdgeLabel={handleUpdateEdgeLabel}
             />
 
             {/* Spatial HTML Nodes */}
@@ -1054,12 +1083,19 @@ export function App() {
                   node={node}
                   zoom={viewport.zoom}
                   isDragging={draggingNodeId === node.id}
-                  isMatched={matchedIds.has(node.id)}
-                  isDimmed={dimmedIds.has(node.id)}
+                  isMatched={
+                    matchedIds.has(node.id) ||
+                    (focusedClusterNodeIds?.has(node.id) ?? false)
+                  }
+                  isDimmed={
+                    dimmedIds.has(node.id) ||
+                    (focusedClusterNodeIds !== null && !focusedClusterNodeIds.has(node.id))
+                  }
                   isWireTarget={wireDraft?.hoverTargetId === node.id}
                   isWiringActive={wireDraft !== null}
                   autoFocus={autoFocusNodeId === node.id}
                   onAutoFocusHandled={() => setAutoFocusNodeId(null)}
+                  onHoverNode={handleHoverNode}
                   onStartDrag={handleStartNodeDrag}
                   onMoveDrag={handleMoveNodeDrag}
                   onEndDrag={handleEndNodeDrag}

@@ -27,6 +27,7 @@ interface NodeCardProps {
   gridMode?: boolean;
   autoFocus?: boolean;
   onAutoFocusHandled?: () => void;
+  onHoverNode?: (nodeId: string | null) => void;
   onStartDrag: (nodeId: string, clientX: number, clientY: number) => void;
   onMoveDrag: (clientX: number, clientY: number) => void;
   onEndDrag: () => void;
@@ -63,6 +64,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   gridMode = false,
   autoFocus,
   onAutoFocusHandled,
+  onHoverNode,
   onStartDrag,
   onMoveDrag,
   onEndDrag,
@@ -203,8 +205,14 @@ export const NodeCard: React.FC<NodeCardProps> = ({
     <div
       ref={cardRef}
       data-node-id={node.id}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => {
+        setIsHovered(true);
+        onHoverNode?.(node.id);
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        onHoverNode?.(null);
+      }}
       onPointerDown={(e) => {
         if (!gridMode) e.stopPropagation();
       }}

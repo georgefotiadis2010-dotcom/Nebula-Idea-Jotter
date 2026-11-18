@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import type { NodeSize, PortCorner, VaultEdge, VaultNode } from '../types/vault';
-import { buildBezierPath, getClosestPorts, getPortPosition } from '../utils/geometry';
+import {
+  buildBezierPath,
+  buildTaperedRibbonPath,
+  getClosestPorts,
+  getPortPosition,
+} from '../utils/geometry';
 
 export interface MagneticPreview {
   sourceId: string;
@@ -21,7 +26,9 @@ interface TetherLayerProps {
   magneticPreview: MagneticPreview | null;
   wireDraft: WireDraft | null;
   dimmedNodeIds: Set<string>;
+  focusedClusterNodeIds: Set<string> | null;
   onSeverEdge: (edgeId: string) => void;
+  onUpdateEdgeLabel: (edgeId: string, label: string) => void;
 }
 
 function getNodeAccentColor(node: VaultNode): string {
@@ -46,9 +53,13 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
   magneticPreview,
   wireDraft,
   dimmedNodeIds,
+  focusedClusterNodeIds,
   onSeverEdge,
+  onUpdateEdgeLabel,
 }) => {
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+  const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
+  const [draftLabel, setDraftLabel] = useState('');
 
   const nodeMap = new Map<string, VaultNode>();
   for (const n of nodes) {
@@ -86,14 +97,14 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
               x2={p2.x}
               y2={p2.y}
             >
-              <stop offset="0%" stopColor={getNodeAccentColor(source)} stopOpacity={0.85} />
-              <stop offset="100%" stopColor={getNodeAccentColor(target)} stopOpacity={0.85} />
+              <stop offset="0%" stopColor={getNodeAccentColor(source)} stopOpacity={0.9} />
+              <stop offset="100%" stopColor={getNodeAccentColor(target)} stopOpacity={0.9} />
             </linearGradient>
           );
         })}
       </defs>
 
-      {/* Existing Gradient & Flowing Pulse Tethers */}
+      {/* Existing Tapered Ribbons, Elastic Curves & Labeled Pills */}
       {edges.map((edge) => {
         const source = nodeMap.get(edge.sourceId);
         const target = nodeMap.get(edge.targetId);
@@ -105,27 +116,51 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
 
         const p1 = getPortPosition(source, sPort, measuredSizes);
         const p2 = getPortPosition(target, tPort, measuredSizes);
-        const { d, midX, midY } = buildBezierPath(p1, p2, sPort, tPort);
+        const { d, midX, midY, c1, c2 } = buildBezierPath(p1, p2, sPort, tPort);
 
-        const isHovered = hoveredEdgeId === edge.id;
-        const isDimmed = dimmedNodeIds.has(edge.sourceId) && dimmedNodeIds.has(edge.targetId);
-        const c1 = getNodeAccentColor(source);
-        const c2 = getNodeAccentColor(target);
+        const isTitleEdge = source.type === 'title' || target.type === 'title';
+        const startHalfW = source.type === 'title' ? 7 : isTitleEdge ? 2 : 3;
+        const endHalfW = target.type === 'title' ? 7 : isTitleEdge ? 2 : 3;
+        const ribbonD = isTitleEdge
+          ? buildTaperedRibbonPath(p1, p2, c1, c2, startHalfW, endHalfW)
+          : null;
+
+        const isHovered = hoveredEdgeId === edge.id || editingEdgeId === edge.id;
+        const isInCluster =
+          focusedClusterNodeIds === null ||
+          (focusedClusterNodeIds.has(edge.sourceId) && focusedClusterNodeIds.has(edge.targetId));
+        const isDimmed =
+          (dimmedNodeIds.has(edge.sourceId) && dimmedNodeIds.has(edge.targetId)) || !isInCluster;
+
+        const c1Color = getNodeAccentColor(source);
+        const c2Color = getNodeAccentColor(target);
 
         return (
           <g
             key={edge.id}
             style={{ opacity: isDimmed ? 0.14 : 1, transition: 'opacity 200ms ease' }}
+            onMouseEnter={() => setHoveredEdgeId(edge.id)}
+            onMouseLeave={() => setHoveredEdgeId((prev) => (prev === edge.id ? null : prev))}
           >
-            {/* Soft ambient halo */}
+            {/* Tapered soft ribbon fill when connected to a Big Idea Title */}
+            {ribbonD && (
+              <path
+                d={ribbonD}
+                fill={isHovered ? 'rgba(244, 63, 94, 0.22)' : `url(#tether-grad-${edge.id})`}
+                fillOpacity={isHovered ? 1 : focusedClusterNodeIds ? 0.28 : 0.16}
+              />
+            )}
+
+            {/* Ambient glow */}
             <path
               d={d}
               fill="none"
-              stroke={isHovered ? 'rgba(244, 63, 94, 0.32)' : `url(#tether-grad-${edge.id})`}
-              strokeOpacity={isHovered ? 1 : 0.2}
+              stroke={isHovered ? 'rgba(244, 63, 94, 0.3)' : `url(#tether-grad-${edge.id})`}
+              strokeOpacity={isHovered ? 1 : 0.22}
               strokeWidth={isHovered ? 8 : 6}
               strokeLinecap="round"
             />
+
             {/* Main gradient noodle */}
             <path
               d={d}
@@ -135,84 +170,135 @@ export const TetherLayer: React.FC<TetherLayerProps> = ({
               strokeLinecap="round"
               strokeDasharray={isHovered ? '5 4' : undefined}
             />
+
             {/* Flowing light pulse along the noodle */}
             {!isHovered && (
               <path
                 d={d}
                 fill="none"
                 stroke="#FFFFFF"
-                strokeOpacity={0.55}
+                strokeOpacity={focusedClusterNodeIds ? 0.78 : 0.5}
                 strokeWidth={1.75}
                 strokeLinecap="round"
                 strokeDasharray="3 18"
                 className="tether-magnetic-preview"
               />
             )}
-            {/* Glowing socket rings at endpoints */}
-            <circle cx={p1.x} cy={p1.y} r={4.5} fill="#101218" stroke={isHovered ? '#F43F5E' : c1} strokeWidth={2} />
-            <circle cx={p2.x} cy={p2.y} r={4.5} fill="#101218" stroke={isHovered ? '#F43F5E' : c2} strokeWidth={2} />
 
-            {/* Wide invisible hit target for easy clicking to sever */}
+            {/* Glowing socket rings at endpoints */}
+            <circle cx={p1.x} cy={p1.y} r={4.5} fill="#101218" stroke={isHovered ? '#F43F5E' : c1Color} strokeWidth={2} />
+            <circle cx={p2.x} cy={p2.y} r={4.5} fill="#101218" stroke={isHovered ? '#F43F5E' : c2Color} strokeWidth={2} />
+
+            {/* Wide invisible hit target */}
             <path
               d={d}
               fill="none"
               stroke="transparent"
-              strokeWidth={20}
+              strokeWidth={22}
               style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-              onMouseEnter={() => setHoveredEdgeId(edge.id)}
-              onMouseLeave={() => setHoveredEdgeId((prev) => (prev === edge.id ? null : prev))}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                onSeverEdge(edge.id);
-                setHoveredEdgeId(null);
+                setEditingEdgeId(edge.id);
+                setDraftLabel(edge.label ?? '');
               }}
-            >
-              <title>Click to snip connection</title>
-            </path>
+            />
 
-            {/* Snip indicator badge on hover */}
-            {isHovered && (
-              <g transform={`translate(${midX}, ${midY})`} style={{ pointerEvents: 'none' }}>
-                <circle r={11} fill="#18181B" stroke="#F43F5E" strokeWidth={1.75} />
-                <path
-                  d="M -3.5 -3.5 L 3.5 3.5 M 3.5 -3.5 L -3.5 3.5"
-                  stroke="#F43F5E"
-                  strokeWidth={1.75}
-                  strokeLinecap="round"
-                />
-              </g>
+            {/* Midpoint Relationship Pill (shows existing label, or hover controls to label / snip) */}
+            {(edge.label || isHovered) && (
+              <foreignObject
+                x={midX - 90}
+                y={midY - 16}
+                width={180}
+                height={32}
+                style={{ overflow: 'visible', pointerEvents: 'auto' }}
+              >
+                <div className="flex h-full items-center justify-center">
+                  {editingEdgeId === edge.id ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        onUpdateEdgeLabel(edge.id, draftLabel.trim());
+                        setEditingEdgeId(null);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 rounded-full border border-sky-400/50 bg-[#151822]/95 px-2 py-0.5 shadow-lg backdrop-blur-md"
+                    >
+                      <input
+                        autoFocus
+                        type="text"
+                        value={draftLabel}
+                        placeholder="inspires..."
+                        onChange={(e) => setDraftLabel(e.target.value)}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === 'Escape') setEditingEdgeId(null);
+                        }}
+                        onBlur={() => {
+                          onUpdateEdgeLabel(edge.id, draftLabel.trim());
+                          setEditingEdgeId(null);
+                        }}
+                        className="w-24 bg-transparent text-center text-[11px] font-medium text-zinc-100 placeholder:text-zinc-500 focus:outline-none"
+                      />
+                    </form>
+                  ) : (
+                    <div
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 rounded-full border border-white/15 bg-[#151822]/90 px-2 py-0.5 text-[11px] font-medium text-zinc-200 shadow-md backdrop-blur-md"
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingEdgeId(edge.id);
+                          setDraftLabel(edge.label ?? '');
+                        }}
+                        title="Label this connection"
+                        className="max-w-[110px] truncate px-1 text-[10.5px] text-zinc-200 hover:text-sky-300"
+                      >
+                        {edge.label || '+ label'}
+                      </button>
+                      {isHovered && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSeverEdge(edge.id);
+                            setHoveredEdgeId(null);
+                          }}
+                          title="Snip connection"
+                          className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-500/20 text-[10px] text-rose-300 hover:bg-rose-500/40"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </foreignObject>
             )}
           </g>
         );
       })}
 
-      {/* Magnetic Proximity Preview Tether (< 220px) */}
+      {/* Magnetic Proximity Preview (unused when auto-connect is off, kept for compatibility) */}
       {magneticPreview && (() => {
         const source = nodeMap.get(magneticPreview.sourceId);
         const target = nodeMap.get(magneticPreview.targetId);
         if (!source || !target) return null;
-
         const { sourcePort, targetPort } = getClosestPorts(source, target, measuredSizes);
         const p1 = getPortPosition(source, sourcePort, measuredSizes);
         const p2 = getPortPosition(target, targetPort, measuredSizes);
         const { d } = buildBezierPath(p1, p2, sourcePort, targetPort);
-
         return (
-          <g filter="url(#tether-glow)">
-            <path
-              d={d}
-              fill="none"
-              stroke="#38BDF8"
-              strokeWidth={2.25}
-              strokeDasharray="6 6"
-              strokeLinecap="round"
-              className="tether-magnetic-preview"
-            />
-            <circle cx={p1.x} cy={p1.y} r={5} fill="#38BDF8" />
-            <circle cx={p2.x} cy={p2.y} r={5} fill="#38BDF8" />
-            <circle cx={p2.x} cy={p2.y} r={10} fill="none" stroke="#38BDF8" strokeWidth={1.25} opacity={0.45} />
-          </g>
+          <path
+            d={d}
+            fill="none"
+            stroke="#38BDF8"
+            strokeWidth={2.25}
+            strokeDasharray="6 6"
+            className="tether-magnetic-preview"
+          />
         );
       })()}
 

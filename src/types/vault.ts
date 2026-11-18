@@ -57,6 +57,7 @@ export interface VaultEdge {
   targetId: string;
   sourcePort?: PortCorner;
   targetPort?: PortCorner;
+  label?: string;
   createdAt: number;
 }
 
