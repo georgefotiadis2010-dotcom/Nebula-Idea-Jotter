@@ -209,6 +209,9 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   const activeTilt = isDragging || isHovered ? 0 : tilt;
   const activeScale = isDragging ? 1.025 : 1;
 
+  const isFloatingEditorial =
+    !gridMode && node.type === 'title' && !isEditingTitle && Boolean(node.heading.trim());
+
   return (
     <div
       ref={cardRef}
@@ -232,18 +235,29 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           ? undefined
           : {
               transform: `translate3d(${node.x}px, ${node.y}px, 0) rotate(${activeTilt}deg) scale(${activeScale})`,
-              width: `${node.width}px`,
+              width: isFloatingEditorial ? 'auto' : `${node.width}px`,
+              maxWidth: isFloatingEditorial ? '460px' : undefined,
+              minWidth: isFloatingEditorial ? '220px' : undefined,
             }
       }
       className={[
-        'tabletop-card group rounded-2xl border',
+        'group rounded-2xl',
+        isFloatingEditorial
+          ? 'bg-transparent border border-transparent shadow-none'
+          : 'tabletop-card border',
         gridMode ? 'relative w-full' : 'absolute left-0 top-0',
-        isDragging ? 'node-no-spring tabletop-card-dragging z-40' : 'node-spring z-10',
+        isDragging
+          ? isFloatingEditorial
+            ? 'node-no-spring z-40'
+            : 'node-no-spring tabletop-card-dragging z-40'
+          : 'node-spring z-10',
         isWireTarget
           ? 'border-emerald-400/80 ring-2 ring-emerald-400/30'
-          : isMatched
+          : isMatched && !isFloatingEditorial
             ? 'border-sky-400/80 ring-2 ring-sky-400/25 shadow-[0_0_28px_rgba(138,180,248,0.2)]'
-            : 'border-white/[0.09] hover:border-white/[0.22]',
+            : isFloatingEditorial
+              ? ''
+              : 'border-white/[0.09] hover:border-white/[0.22]',
         isDimmed ? 'opacity-25 saturate-50' : 'opacity-100',
       ].join(' ')}
     >
@@ -285,7 +299,14 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           isDragging ? 'is-dragging' : '',
         ].join(' ')}
       >
-        <div className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-0.5">
+        <div
+          className={[
+            'inline-flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 transition-opacity',
+            isFloatingEditorial
+              ? 'bg-white/[0.06] opacity-0 group-hover:opacity-100'
+              : 'bg-white/[0.05]',
+          ].join(' ')}
+        >
           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${typeMeta.dot}`} aria-hidden="true" />
           <TypeIcon className={`h-3 w-3 shrink-0 ${typeMeta.accent}`} aria-hidden="true" />
           <span className="truncate text-[11px] font-medium text-zinc-300">
@@ -395,16 +416,19 @@ export const NodeCard: React.FC<NodeCardProps> = ({
               />
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => {
+            <div
+              onPointerDown={gridMode ? undefined : handlePointerDown}
+              onPointerMove={gridMode ? undefined : handlePointerMove}
+              onLostPointerCapture={gridMode ? undefined : handleLostCapture}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
                 setIsEditingTitle(true);
                 requestAnimationFrame(() => titleInputRef.current?.focus());
               }}
-              title="Click to edit title"
-              className="w-full text-left focus:outline-none"
+              title="Drag to move · Double-click to edit"
+              className="node-drag-handle w-full text-left"
             >
-              <h2 className="font-editorial animate-editorial-reveal bg-gradient-to-br from-white via-zinc-100 to-rose-200/90 bg-clip-text text-[32px] leading-[1.08] font-normal text-transparent">
+              <h2 className="font-editorial animate-editorial-reveal bg-gradient-to-br from-white via-zinc-100 to-rose-200/90 bg-clip-text text-[42px] leading-[1.03] font-normal text-transparent drop-shadow-[0_6px_24px_rgba(0,0,0,0.6)]">
                 {node.heading}
               </h2>
               <div className="animate-editorial-rule my-2.5 h-[1.5px] w-full bg-gradient-to-r from-rose-400/80 via-sky-400/50 to-transparent" />
@@ -413,7 +437,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
                   {node.subtitle}
                 </p>
               )}
-            </button>
+            </div>
           )}
         </div>
       )}
