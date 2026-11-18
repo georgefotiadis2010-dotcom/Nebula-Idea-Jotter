@@ -55,13 +55,11 @@ export function getPortPosition(
   const { width, height } = getNodeDimensions(node, measuredSizes);
   switch (port) {
     case 'tl':
-      return { x: node.x, y: node.y };
-    case 'tr':
-      return { x: node.x + width, y: node.y };
     case 'bl':
-      return { x: node.x, y: node.y + height };
+      return { x: node.x, y: node.y + height / 2 };
+    case 'tr':
     case 'br':
-      return { x: node.x + width, y: node.y + height };
+      return { x: node.x + width, y: node.y + height / 2 };
   }
 }
 

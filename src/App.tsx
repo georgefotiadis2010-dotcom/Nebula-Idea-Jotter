@@ -1097,25 +1097,6 @@ export function App() {
         </div>
       )}
 
-      {/* Bottom-Left Subtle Studio Hints */}
-      <div className="pointer-events-none fixed bottom-4 left-4 z-30 hidden items-center gap-3 rounded-xl border border-white/[0.06] bg-[#12151B]/70 px-3 py-1.5 text-[11px] text-zinc-500 backdrop-blur-md md:flex">
-        <span>
-          <strong className="font-medium text-zinc-300">⌘V</strong> Paste anywhere
-        </span>
-        <span className="h-3 w-px bg-white/[0.08]" />
-        <span>
-          <strong className="font-medium text-zinc-300">Double-click</strong> New note
-        </span>
-        <span className="h-3 w-px bg-white/[0.08]" />
-        <span>
-          <strong className="font-medium text-zinc-300">Space + Drag</strong> Pan
-        </span>
-        <span className="h-3 w-px bg-white/[0.08]" />
-        <span>
-          <strong className="font-medium text-zinc-300">Click tether</strong> Sever
-        </span>
-      </div>
-
       {/* Collapsible Bottom-Right Minimap (canvas mode only) */}
       {viewMode === 'canvas' && (
         <Minimap

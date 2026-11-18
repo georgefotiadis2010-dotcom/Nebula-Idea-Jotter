@@ -36,10 +36,8 @@ interface NodeCardProps {
 }
 
 const PORT_POSITIONS: { port: PortCorner; className: string; label: string }[] = [
-  { port: 'tl', className: '-left-1.5 -top-1.5', label: 'Top-left connection port' },
-  { port: 'tr', className: '-right-1.5 -top-1.5', label: 'Top-right connection port' },
-  { port: 'bl', className: '-bottom-1.5 -left-1.5', label: 'Bottom-left connection port' },
-  { port: 'br', className: '-bottom-1.5 -right-1.5', label: 'Bottom-right connection port' },
+  { port: 'tr', className: '-right-2.5 top-1/2 -translate-y-1/2', label: 'Drag thread to connect' },
+  { port: 'tl', className: '-left-2.5 top-1/2 -translate-y-1/2', label: 'Drag thread to connect' },
 ];
 
 /** Subtle natural tabletop card tilt (-1.3deg to +1.3deg) */
@@ -230,31 +228,31 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         isDimmed ? 'opacity-25 saturate-50' : 'opacity-100',
       ].join(' ')}
     >
-      {/* 4 Corner Connection Ports (canvas mode only) */}
+      {/* 2 Tactile Side Thread Pins (canvas mode only) */}
       {!gridMode &&
         PORT_POSITIONS.map(({ port, className, label }) => (
           <button
             key={port}
             type="button"
             aria-label={label}
-            title="Drag to connect node"
+            title="Pull thread to connect"
             onPointerDown={(e) => {
               if (e.button !== 0) return;
               e.stopPropagation();
               onStartWire(node.id, port, e.clientX, e.clientY);
             }}
             className={[
-              'absolute z-30 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/30 bg-[#151821] transition-all duration-150',
-              'hover:scale-125 hover:border-sky-400 hover:bg-sky-400/20',
+              'absolute z-30 flex h-5 w-5 items-center justify-center rounded-full border border-white/25 bg-[#191D26] shadow-md transition-all duration-150',
+              'hover:scale-125 hover:border-sky-400 hover:bg-sky-500/25 hover:shadow-[0_0_12px_rgba(56,189,248,0.5)]',
               isWiringActive ? 'opacity-100 scale-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
               className,
             ].join(' ')}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+            <span className="h-2 w-2 rounded-full bg-sky-400" />
           </button>
         ))}
 
-      {/* Clean Dedicated Drag Handle Header */}
+      {/* Clean Borderless Drag Row */}
       <div
         role={gridMode ? undefined : 'button'}
         tabIndex={gridMode ? undefined : 0}
@@ -263,15 +261,15 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         onPointerMove={gridMode ? undefined : handlePointerMove}
         onLostPointerCapture={gridMode ? undefined : handleLostCapture}
         className={[
-          'flex items-center justify-between gap-2 border-b border-white/[0.06] px-3.5 py-2.5',
+          'flex items-center justify-between gap-2 px-3.5 pt-3 pb-1',
           gridMode ? '' : 'node-drag-handle',
           isDragging ? 'is-dragging' : '',
         ].join(' ')}
       >
-        <div className="flex min-w-0 items-center gap-2">
-          <span className={`h-2 w-2 shrink-0 rounded-full ${typeMeta.dot}`} aria-hidden="true" />
-          <TypeIcon className={`h-3.5 w-3.5 shrink-0 ${typeMeta.accent}`} aria-hidden="true" />
-          <span className="truncate text-[11.5px] font-medium text-zinc-300">
+        <div className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-0.5">
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${typeMeta.dot}`} aria-hidden="true" />
+          <TypeIcon className={`h-3 w-3 shrink-0 ${typeMeta.accent}`} aria-hidden="true" />
+          <span className="truncate text-[11px] font-medium text-zinc-300">
             {node.type === 'text' && node.title
               ? node.title
               : node.type === 'color' && node.label
@@ -282,7 +280,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           {node.type === 'text' && (
             <button
               type="button"
